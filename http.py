@@ -10,6 +10,10 @@ class HttpResponseNotAllowed(HttpResponse):
 	status_code = 405
 
 	def __init__(self, allow_headers):
+		"""
+		RFC2616: The response MUST include an Allow header containing 
+		a list of valid methods for the requested resource. 
+		"""
 		super(HttpResponseNotAllowed, self).__init__()
 		try:
 			iter(allow_headers)
@@ -20,6 +24,9 @@ class HttpResponseNotAllowed(HttpResponse):
 
 class HttpResponseNotAcceptable(HttpResponse):
 	status_code = 406
+
+class HttpResponseConflict(HttpResponse):
+	status_code = 409
 
 class HttpResponseNotImplemented(HttpResponse):
 	status_code = 501

@@ -3,9 +3,10 @@ def detect_format(request, default_format='application/json'):
 	Detects the format the user hast requested.
 	"""
 	if request.GET.get('format', None):
-		return format
+		return request.GET['format']
 
-	format_list = media_by_accept_header(format)
+	format_list = media_by_accept_header(request)
+	return format_list or default_format
 	
 
 def media_by_accept_header(request):
@@ -36,3 +37,11 @@ def media_by_accept_header(request):
 		media_list.append( (media_type, q_val) )
 
 	return [i[0] for i in sorted(tl, key=lambda x: x[1], reverse=True)]	
+
+
+def dictionize_list_for_formsets(l):
+	d = {}
+	for (counter, data) in enumerate(l):
+		d.update(dict([(unicode("form-"+str(counter)+"-"+str(k)), v) for (k,v) in data.items()]))
+	d.update({'form-TOTAL_FORMS': unicode(counter+1), 'form-INITIAL_FORMS': u'0', 'form-MAX_NUM_FORMS': u''})
+	return d

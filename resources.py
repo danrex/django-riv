@@ -5,7 +5,31 @@ from django.conf.urls.defaults import patterns, url
 from django.views.decorators.csrf import csrf_exempt
 
 from riv.http import HttpResponseNotAllowed, HttpResponseNoContent, HttpResponseCreated, HttpResponseNotImplemented
+from riv.info import RestInformation
+from riv.utils import dictionize_list_for_formsets
 from riv.wrappers import BaseWrapper
+
+# A short documentation about the different Method definitions:
+# (http://www.w3.org/Protocols/rfc2616/rfc2616-sec9.html)
+#
+# PUT:
+# - URI refers to an already existing resource
+# - the enclosed entity is a modified version of the requested resource
+# - if the URI points to a non-existing resource the server MAY create
+#   a new one.
+# - resource newly created = 201; resource modified = 200 (OK) or 204 (No content)
+# - The server MUST analyse the Content-* headers and return 501 if it
+#   does not understand the request.
+# - PUT URIs define entities. POST URIs defines resources that can HANDLE the entity.
+# - If the server wants to apply the change to another resource it MUST return 
+#   301 (Moved permanently).
+#
+# POST:
+#
+# GET:
+#
+# DELETE:
+#
 
 # TESTS TO WRITE:
 # - put 'bind_model' and add queryset with invalid element.
@@ -17,8 +41,8 @@ __all__ = (
 )
 
 ALLOWED_OPTIONS = (
-	'name',
-	'bind_model',
+	'name', 						# used to create the URLs. Not tied to any model!
+	'model',
 	'allowed_methods',
 	'include_object_in_response',
 	'redirect_as_error',
@@ -37,7 +61,7 @@ class ResourceOptions(object):
 	Contains defaults for all options.
 	"""
 	def __init__(self, meta):
-		self.bind_model = None
+		self.model = None
 		self.allowed_methods = ['GET', 'POST', 'PUT', 'DELETE']
 		self.include_object_in_response = False
 		self.redirect_as_error = False
@@ -82,7 +106,7 @@ class ResourceMeta(type):
 		
 		new_class._meta = ResourceOptions(meta)
 
-		if getattr(new_class._meta, 'bind_model', None):
+		if getattr(new_class._meta, 'model', None):
 			pass
 		# TODO
 
@@ -92,8 +116,8 @@ class Resource(object):
 	__metaclass__ = ResourceMeta
 
 	_wrapper = BaseWrapper()
-	_has_errors = False
-	_error_dict = {}
+	#_has_errors = False
+	#_error_dict = {}
 
 	@property
 	def __name__(self):
@@ -111,41 +135,6 @@ class Resource(object):
 	#def wrapper(self):
 	#	del _wrapper
 
-	@property
-	def queryset(self):
-		return self._queryset
-
-	@queryset.setter
-	def queryset(self, queryset):
-		from django.db.models import Model
-		from django.db.models.query import QuerySet
-		if getattr(self._meta, 'readonly_queryset', None):
-			raise AttributeError('attribute is read only')
-
-		if not isinstance(queryset, Model) and not isinstance(queryset, QuerySet):
-			raise AttributeError('invalid type: %s' % queryset.__class__)
-
-		if self._meta.bind_model:
-			if isinstance(queryset, QuerySet):
-				cls = queryset.model
-			else:
-				cls = type(p)
-
-			self._check_model_type(cls)
-		self._queryset = queryset
-
-	@queryset.deleter
-	def queryset(self):
-		del _queryset
-
-	@property
-	def error(self):
-		return self._has_errors
-
-	@wrapper.setter
-	def error(self, err):
-		self._has_errors = err
-
 	def __init__(self, display_errors=False, name=None):
 		# TODO: what if meta does not have a name set?
 		self.name = name or self._meta.name
@@ -159,14 +148,15 @@ class Resource(object):
 		)
 	urls = property(_get_urls)
 			
+	# TODO: Compare with utils.detect_format and get rid of one of them.
 	def get_format(self, request):
 		# json is default
 		format = request.GET.get('format', None) or request.META.get('CONTENT_TYPE', None)
 
 		if format:
-			f = self.formats.get(format, None) or format
+			f = self._meta.formats.get(format, None) or format
 
-			return format or 'json'
+		return format or 'json'
 
 	#@property
 	#def wrap_request(self):
@@ -182,28 +172,37 @@ class Resource(object):
 
 	@csrf_exempt
 	def handle_request(self, request, *args, **kwargs):
-		# flush variables - TODO: create method for that
-		self._has_errors = False
-		self._error_dict = {}
+		# not needed anymore. remove. TODO
+		#self._clean_error_variables()
+		rest_info = RestInformation(self._meta)
 
 		# TODO: Find a better solution for that.
 		req_meth = request.method.upper()
 		req_type = None
 		if 'id' in kwargs:
 			req_type = 'object'
-		if 'ids' in kwargs:
+		if 'id_list' in kwargs:
 			req_type = 'multiple'
+		# TODO: Why only GET?
 		if req_meth == 'GET' and not kwargs.has_key('id'):
 			req_type = 'multiple'
 
+		rest_info.request_method = request.method
+		rest_info.request_type = req_type
+		rest_info.allowed_methods = self._http_allowed_methods(req_type)
+
+		# TODO: Whats happens e.g. if a PUT request does not point to any resource.
+		# Who handles this?
+
 		if not self._check_method(request, req_type):
-			return HttpResponseNotAllowed(allow_headers=self._http_allowed_methods(req_type))
+			return HttpResponseNotAllowed(allow_headers=rest_info.allowed_methods)
 
 		# Add an is_rest() method to the request
 		request.is_rest = lambda: True
 
 		# Add the current resource
-		request.rest_resource = self
+		request.tmp_resource = self # TODO: This should not be needed anymore!
+		request.rest_info = rest_info
 
 		# An exception signals malformed input data resulting
 		# in a 400 Bad Request response.
@@ -224,9 +223,10 @@ class Resource(object):
 				raise
 			else:
 				raise Http404()
+		import inspect # TODO: delete
 
 		# TODO delete
-		print handling_method
+		print "%s (%s): %s" % (inspect.getframeinfo(inspect.currentframe()).filename, inspect.getframeinfo(inspect.currentframe()).lineno, handling_method)
 
 		self.pre_view(request)
 
@@ -243,7 +243,7 @@ class Resource(object):
 		except Exception, e:
 			# TODO: Remove
 			print "DO SOMETHING HERE!!!! %s" % (e,)
-			self._has_errors = True
+			rest_info._has_errors = True
 			handling_exception = e
 			# TODO: Should that be here?!?
 			if settings.DEBUG and self.display_errors:
@@ -274,16 +274,6 @@ class Resource(object):
 		"""
 		pass
 
-	def error_by_list(self, list):
-		self._has_errors = True
-		self._error_dict = {'errors': list}
-		return
-
-	def error_by_form(self, form):
-		self._has_errors = True
-		self._error_dict = form.errors
-		return
-
 	def read_raw_data(self, request):
 		# convert the data into the correct format and add
 		# it as POST variables.
@@ -294,6 +284,8 @@ class Resource(object):
 		else:
 			# TODO: multipart (files) not supported.
 			d = self._raw_data_to_dict(request)
+			if isinstance(d, list):
+				d = dictionize_list_for_formsets(d)
 			print d
 			q = QueryDict('', encoding=request._encoding).copy()
 			q.update(d)
@@ -304,7 +296,7 @@ class Resource(object):
 	def _response_postprocessing(self, request, response=None, exception=None):
 		"""
 		Processes the response of the handling method to ensure that we always
-		return a REST conpliant response.
+		return a REST compliant response.
 
 		We expect one of the following results from the handling method:
 		 
@@ -318,7 +310,7 @@ class Resource(object):
 		
 		Did we miss something?
 		"""
-		# TODO: Restructure complete error handling. It is messed up.
+		# TODO: Restructure error handling. It is messed up.
 
 		if not response and not exception:
 			return HttpResponseServerError()
@@ -338,11 +330,11 @@ class Resource(object):
 		if response and response.status_code == 500:
 			return HttpResponseServerError()
 
-		if self._has_errors:
+		if request.rest_info._has_errors:
 			response = HttpResponse(status=403)
 			# TODO: Return error dict in the correct format!
 			from django.utils import simplejson
-			response.content = simplejson.dumps(self._error_dict)
+			response.content = simplejson.dumps(request.rest_info._error_dict)
 			return response
 
 		# A view should always return a valid HttpResponse. However, it is up
@@ -367,11 +359,16 @@ class Resource(object):
 				# ...right?
 				return HttpResponse(status=self._meta.redirect_as_error_code)
 
-		if request.method == 'DELETE':
+		if request.rest_info.request_method == 'DELETE':
 				if response.status_code == 200 and not self._meta.include_object_in_response:
 					return HttpResponseNoContent()
-		elif request.method in ['POST', 'PUT']:
+		elif request.rest_info.request_method in ['POST', 'PUT']:
 				if response.status_code == 200:
+					# TODO: This is wrong. PUT should ONLY return 201 if a new 
+					# object is created. otherwise it should return 200 (ok) or
+					# 204 (no content) if no content is included.
+					# TODO: We need a possibility to distinguish whether the object
+					# has been updated or newly created.
 					if self._meta.include_object_in_response:
 						response.status_code = 201
 					else:
@@ -400,7 +397,8 @@ class Resource(object):
 		elif response.status_code == 401 and not response.get('WWW-Authenticate', None):
 			# TODO: Check header
 			return HttpResponseServerError()
-		elif response.status_code == 405 and not response.get('Allow'):
+		# the "None" in HttpResponse.get() is necessary for Django versions < 1.4
+		elif response.status_code == 405 and not response.get('Allow', None):
 			return HttpResponseServerError()
 		elif response.status_code == 200:
 			# TODO: Check on a if the content-type matches the requested one on a code 200.
@@ -434,10 +432,6 @@ class Resource(object):
 			full_req_type in self._meta.allowed_methods or \
 			req_meth in self._meta.allowed_methods
 		)
-
-	def _check_model_type(self, m):
-		if m.__name__.lower() != self._meta.bind_model.lower():
-			raise ValueError('Invalid object-type: %s. Required type is: %s.' % (m.__name__, self._meta.bind_model))
 
 	def _handle_put_request(self, request):
 		"""
