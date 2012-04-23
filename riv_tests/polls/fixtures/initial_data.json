@@ -1,0 +1,27 @@
+[
+	{
+		"fields": {
+			"username": "johndoe",
+			"email": "john@doe.com",
+			"password": "whatever"
+		},
+		"model": "auth.user",
+		"pk": 1
+	},
+	{
+		"fields": {
+			"question": "What is it about?",
+			"pub_date": "2011-10-20 18:00:00"
+		},
+		"model": "polls.poll",
+		"pk": 1
+	},
+	{
+		"fields": {
+			"question": "Is it about that?",
+			"pub_date": "2011-10-20 18:05:00"
+		},
+		"model": "polls.poll",
+		"pk": 2
+	}
+]
