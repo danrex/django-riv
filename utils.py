@@ -1,6 +1,6 @@
 def detect_format(request, default_format='application/json'):
 	"""
-	Detects the format the user hast requested.
+	Detects the format requested by the user.
 	"""
 	if request.GET.get('format', None):
 		return request.GET['format']
@@ -45,3 +45,14 @@ def dictionize_list_for_formsets(l):
 		d.update(dict([(unicode("form-"+str(counter)+"-"+str(k)), v) for (k,v) in data.items()]))
 	d.update({'form-TOTAL_FORMS': unicode(counter+1), 'form-INITIAL_FORMS': u'0', 'form-MAX_NUM_FORMS': u''})
 	return d
+
+def traverse_dict(d, keys, return_parent=False):
+	if isinstance(d, dict):
+		if return_parent and len(keys) == 1:
+			return d
+		if d.has_key(keys[0]):
+			return traverse_dict(d[keys[0]], keys[1:], return_parent)
+		else:
+			return None
+	else:
+		return d
