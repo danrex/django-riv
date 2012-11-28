@@ -53,6 +53,12 @@ def traverse_dict(d, keys, return_parent=False):
 		if d.has_key(keys[0]):
 			return traverse_dict(d[keys[0]], keys[1:], return_parent)
 		else:
-			return None
+			raise KeyError("Traversing the dictionary failed on key: %s" % keys[0])
 	else:
-		return d
+		# if "keys" is specified the user requested to further traverse
+		# the dictionary. This fails so we return None. In any other
+		# case we arrived and return the value. 
+		if keys:
+			raise KeyError("Traversing the dictionary failed on key: %s" % keys[0])
+		else:
+			return d
