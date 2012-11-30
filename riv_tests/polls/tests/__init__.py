@@ -1,5 +1,5 @@
-from django.test import Client, TestCase
 
+from django.test import Client, TestCase
 class BaseTestCase(TestCase):
 	fixtures = ['initial_data.json',]
 
@@ -11,4 +11,4 @@ class BaseTestCase(TestCase):
 
 from resources import *
 from serializers import *
-
+from deserializers import *

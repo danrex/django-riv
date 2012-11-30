@@ -10,7 +10,7 @@ class BaseSerializerTestCase(BaseTestCase):
 
 	def setUp(self):
 		self.choice1 = Choice.objects.create(poll=Poll.objects.get(pk=1), choice='Blue', votes=4)
-		self.choice2 = Choice.objects.create(poll=Poll.objects.get(pk=1), choice='Blue', votes=4)
+		self.choice2 = Choice.objects.create(poll=Poll.objects.get(pk=1), choice='Green', votes=4)
 
 	def testSerializeAll(self):
 		self.assertEqual(
@@ -77,13 +77,13 @@ class BaseSerializerTestCase(BaseTestCase):
 
 	def testSerializeChoiceMap(self):
 		self.assertEqual(
-			serializers.serialize('rest', self.choice1, mapfields={'votes': 'ballots'}),
+			serializers.serialize('rest', self.choice1, map_fields={'votes': 'ballots'}),
 			{'ballots': self.choice1.votes, 'poll': self.choice1.poll.id, 'id': self.choice1.id, 'choice': self.choice1.choice}
 		)
 
 	def testSerializeChoiceMapForeignKey(self):
 		self.assertEqual(
-			serializers.serialize('rest', self.choice1, inline=True, mapfields={'poll__pub_date': 'poll__release_date'}),
+			serializers.serialize('rest', self.choice1, inline=True, map_fields={'poll__pub_date': 'poll__release_date'}),
 			{'votes': self.choice1.votes, 'poll': {'release_date': self.choice1.poll.pub_date, 'question': self.choice1.poll.question, 'id': self.choice1.poll.id}, 'id': self.choice1.id, 'choice': self.choice1.choice}
 		)
 
@@ -91,13 +91,13 @@ class BaseSerializerTestCase(BaseTestCase):
 		# TODO TODO TODO
 		self.assertTrue(False)
 		#self.assertEqual(
-		#	serializers.serialize('rest', self.choice1, inline=True, mapfields={'poll__pub_date': 'poll__release_date'}),
+		#	serializers.serialize('rest', self.choice1, inline=True, map_fields={'poll__pub_date': 'poll__release_date'}),
 		#	{'votes': self.choice1.votes, 'poll': {'release_date': self.choice1.poll.pub_date, 'question': self.choice1.poll.question, 'id': self.choice1.poll.id}, 'id': self.choice1.id, 'choice': self.choice1.choice}
 		#)
 
 	def testSerializeChoiceMapDownForeignKey(self):
 		self.assertEqual(
-			serializers.serialize('rest', self.choice1, inline=True, mapfields={'poll__pub_date': 'polldate'}),
+			serializers.serialize('rest', self.choice1, inline=True, map_fields={'poll__pub_date': 'polldate'}),
 			{'votes': self.choice1.votes, 'polldate': self.choice1.poll.pub_date, 'poll': {'question': self.choice1.poll.question, 'id': self.choice1.poll.id}, 'id': self.choice1.id, 'choice': self.choice1.choice}
 		)
 

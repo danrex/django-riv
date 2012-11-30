@@ -62,3 +62,12 @@ def traverse_dict(d, keys, return_parent=False):
 			raise KeyError("Traversing the dictionary failed on key: %s" % keys[0])
 		else:
 			return d
+
+def create_tree_with_val(d, keys, val):
+	if not keys:
+		return
+	if len(keys) == 1:
+		d[keys[0]] = val
+	if not d.has_key(keys[0]):
+		d[keys[0]] = {}
+	create_tree_with_val(d[keys[0]], keys[1:], val)
