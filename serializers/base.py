@@ -11,17 +11,17 @@ class Serializer(python.Serializer):
     """
     This is the base for all REST serializers.
     """
-    internal_use_only = False   
+    internal_use_only = False
 
     def serialize(self, queryset, **options):
         # The "fields" option is handled by the superclass serializer.
         #
         # We added the possibility to exclude fields. The handling is done
         # in the start_object method.
-        self.excluded_fields = options.pop('exclude', None)
-        self.map_fields = options.pop('map_fields', None) # "map" is reserved!
-        self.extra_fields = options.pop('extra', None)
+        self.excluded_fields = options.pop('exclude', [])
+        self.extra_fields = options.pop('extra', [])
         self.inline = options.pop('inline', [])
+        self.map_fields = options.pop('map_fields', {}) # "map" is reserved!
         self.reverse_fields = options.pop('reverse_fields', [])
 
         # If inline is True, each ForeignKey and ManyToMany field is 
@@ -31,7 +31,7 @@ class Serializer(python.Serializer):
         # loop. Thus, we only serialize FK/M2M/REV relationships, if reverse
         # is set to False.
         #self.reverse = options.pop('reverse', None)
-        
+
         serializee = None
         try:
             iter(queryset)
@@ -70,8 +70,9 @@ class Serializer(python.Serializer):
             )
 
     def end_object(self, obj):
-        # Add the primary key with its proper field name to the list of fields.
-        self._current[obj._meta.pk.name] = smart_unicode(obj._get_pk_val(), strings_only=True)
+        if self.selected_fields is None or obj._meta.pk.name in self.selected_fields:
+            # Add the primary key with its proper field name to the list of fields.
+            self._current[obj._meta.pk.name] = smart_unicode(obj._get_pk_val(), strings_only=True)
         if self.extra_fields:
             for field in self.extra_fields:
                 if getattr(obj, field, None):
@@ -100,7 +101,7 @@ class Serializer(python.Serializer):
                         # TODO also fail silently if Debug==True?
                         pass
         super(Serializer, self).end_object(obj)
-        
+
     def end_serialization(self):
         super(Serializer, self).end_serialization()
         self.objects = [i['fields'] for i in self.objects]
@@ -109,14 +110,14 @@ class Serializer(python.Serializer):
             self.objects = self.objects[0]
 
     def handle_fk_field(self, obj, field):
-        if field.name in self.inline:
+        if self.inline and field.name in self.inline:
             tmpserializer = Serializer()
             fields, exclude, maps, inline = self._get_serialize_options_for_subfield(field.name)
             self._current[field.name] = tmpserializer.serialize(
-                getattr(obj, field.name), 
-                inline=inline, 
-                fields=fields, 
-                exclude=exclude, 
+                getattr(obj, field.name),
+                inline=inline,
+                fields=fields,
+                exclude=exclude,
                 map_fields=maps,
             )
         else:
@@ -126,22 +127,24 @@ class Serializer(python.Serializer):
     def handle_m2m_field(self, obj, field):
         print field.name
         print self.inline
-        if field.name in self.inline:
+        if self.inline and field.name in self.inline:
             tmpserializer = Serializer()
             fields, exclude, maps, inline = self._get_serialize_options_for_subfield(field.name)
             self._current[field.name] = [tmpserializer.serialize(
                 related,
-                inline=inline, 
-                fields=fields, 
-                exclude=exclude, 
+                inline=inline,
+                fields=fields,
+                exclude=exclude,
                 map_fields=maps,
             ) for related in getattr(obj, field.name).iterator()]
         else:
             super(Serializer, self).handle_m2m_field(obj, field)
 
     def serialize_reverse_fields(self, obj):
+        if not self.reverse_fields:
+            return
         for fieldname in self.reverse_fields:
-            if fieldname in self.inline:
+            if self.inline and fieldname in self.inline:
                 tmpserializer = Serializer()
                 fields, exclude, maps, inline = self._get_serialize_options_for_subfield(fieldname)
                 #self._current[fieldname] = []
@@ -166,8 +169,8 @@ class Serializer(python.Serializer):
                 else:
                     self._current[fieldname] = [tmpserializer.serialize(
                         related,
-                        inline=inline, 
-                        fields=fields, 
+                        inline=inline,
+                        fields=fields,
                         exclude=exclude,
                         map_fields=maps,
                     ) for related in getattr(obj, fieldname).iterator()]
@@ -176,10 +179,10 @@ class Serializer(python.Serializer):
                     self._current[fieldname] = getattr(obj, fieldname)._get_pk_val()
                 else:
                     self._current[fieldname] = [related._get_pk_val() for related in getattr(obj, fieldname).iterator()]
-            
+
 
     def _get_serialize_options_for_subfield(self, name):
-            fields, exclude, maps, inline = None, None, {}, []
+            fields, exclude, maps, inline = None, None, {}, None
             field_option_name = name + SEPARATOR
             if self.selected_fields:
                 fields = [i.replace(field_option_name,'') for i in self.selected_fields if i.startswith(field_option_name)]

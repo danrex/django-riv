@@ -61,19 +61,24 @@ class BaseSerializerTestCase(BaseTestCase):
 
 	def testSerializeChoiceInline(self):
 		self.assertEqual(
-			serializers.serialize('rest', self.choice1, inline=True),
+			serializers.serialize('rest', self.choice1, inline=['poll',]),
 			{'votes': self.choice1.votes, 'poll': {'pub_date': self.choice1.poll.pub_date, 'question': self.choice1.poll.question, 'id': self.choice1.poll.id}, 'id': self.choice1.id, 'choice': self.choice1.choice}
 		)
 
 	def testSerializeChoiceExcludeForeignKey(self):
 		self.assertEqual(
-			serializers.serialize('rest', self.choice1, inline=True, exclude=['poll__question',]),
+			serializers.serialize('rest', self.choice1, inline=['poll',], exclude=['poll__question',]),
 			{'votes': self.choice1.votes, 'poll': {'pub_date': self.choice1.poll.pub_date, 'id': self.choice1.poll.id}, 'id': self.choice1.id, 'choice': self.choice1.choice}
 		)
 
 	def testSerializeChoiceExcludeForeignKeyWithoutInline(self):
-		# TODO TODO TODO
-		self.assertTrue(False)
+		"""
+		This test should simply ignore the exclude setting.
+		"""
+		self.assertEqual(
+			serializers.serialize('rest', self.choice1, exclude=['poll__question',]),
+			{'votes': self.choice1.votes, 'poll': self.choice1.poll.id, 'id': self.choice1.id, 'choice': self.choice1.choice}
+		)
 
 	def testSerializeChoiceMap(self):
 		self.assertEqual(
@@ -83,12 +88,14 @@ class BaseSerializerTestCase(BaseTestCase):
 
 	def testSerializeChoiceMapForeignKey(self):
 		self.assertEqual(
-			serializers.serialize('rest', self.choice1, inline=True, map_fields={'poll__pub_date': 'poll__release_date'}),
+			serializers.serialize('rest', self.choice1, inline=['poll',], map_fields={'poll__pub_date': 'poll__release_date'}),
 			{'votes': self.choice1.votes, 'poll': {'release_date': self.choice1.poll.pub_date, 'question': self.choice1.poll.question, 'id': self.choice1.poll.id}, 'id': self.choice1.id, 'choice': self.choice1.choice}
 		)
 
 	def testSerializeChoiceMapForeignKeyWithoutInline(self):
 		# TODO TODO TODO
+		# This should raise an error so people know why their
+		# mapping did not work.
 		self.assertTrue(False)
 		#self.assertEqual(
 		#	serializers.serialize('rest', self.choice1, inline=True, map_fields={'poll__pub_date': 'poll__release_date'}),
@@ -97,7 +104,7 @@ class BaseSerializerTestCase(BaseTestCase):
 
 	def testSerializeChoiceMapDownForeignKey(self):
 		self.assertEqual(
-			serializers.serialize('rest', self.choice1, inline=True, map_fields={'poll__pub_date': 'polldate'}),
+			serializers.serialize('rest', self.choice1, inline=['poll',], map_fields={'poll__pub_date': 'polldate'}),
 			{'votes': self.choice1.votes, 'polldate': self.choice1.poll.pub_date, 'poll': {'question': self.choice1.poll.question, 'id': self.choice1.poll.id}, 'id': self.choice1.id, 'choice': self.choice1.choice}
 		)
 

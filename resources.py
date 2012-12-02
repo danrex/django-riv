@@ -52,6 +52,8 @@ ALLOWED_OPTIONS = (
 	'readonly_queryset',
 	'fields',
 	'exclude',
+	'inline',
+	'reverse_fields',
 	'extra_fields',
 	'map_fields'
 )
@@ -68,8 +70,10 @@ class ResourceOptions(object):
 		self.redirect_as_error_code = 401
 		self.resource_handling_required = False
 		self.readonly_queryset = False
-		self.fields = []
+		self.fields = None # has to be None, because [] reads as "no field"
 		self.exclude = []
+		self.inline = []
+		self.reverse_fields = []
 		self.extra_fields = []
 		self.map_fields = {}
 

@@ -4,12 +4,15 @@ from django.template import RequestContext
 from forms import PollForm
 from models import Poll
 
+from riv.shortcuts import render_to_rest, render_form_error
+
 def index(request):
 	poll_list = Poll.objects.all().order_by('-pub_date')
 	if request.is_rest():
-		request.rest_info.queryset = poll_list
+		return render_to_rest(poll_list)
+		#request.rest_info.queryset = poll_list
 		# TODO: Rewrite required.
-		return HttpResponse(request.tmp_resource.as_json(poll_list), content_type='application/json; charset=utf8')
+		#return HttpResponse(request.tmp_resource.as_json(poll_list), content_type='application/json; charset=utf8')
 	return render_to_response('index.html',  {
 		'poll_list': poll_list,
 	})
@@ -17,9 +20,10 @@ def index(request):
 def detail(request, id):
 	p = get_object_or_404(Poll, pk=id)
 	if request.is_rest():
-		request.rest_info.queryset = p
+		return render_to_rest(p)
+		#request.rest_info.queryset = p
 		# TODO: Rewrite required.
-		return HttpResponse(request.tmp_resource.as_json(p), content_type='application/json; charset=utf8')
+		#return HttpResponse(request.tmp_resource.as_json(p), content_type='application/json; charset=utf8')
 	return render_to_response('detail.html', {'poll': p})
 
 def results(request, id):
@@ -37,8 +41,9 @@ def update(request, id):
 			return HttpResponse("ok")
 		else:
 			if request.is_rest():
-				request.rest_info.error_by_form(form)
-				return HttpResponse()
+				return render_form_error(form)
+				#request.rest_info.error_by_form(form)
+				#return HttpResponse()
 	else:
 		form = PollForm(instance=p)
 
