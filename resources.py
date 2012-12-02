@@ -3,7 +3,10 @@ from django.http import Http404, HttpResponse, HttpResponseBadRequest, HttpRespo
 from django.conf import settings
 from django.conf.urls.defaults import patterns, url
 from django.views.decorators.csrf import csrf_exempt
+from django.db.models.query import QuerySet
+from django.core import serializers
 
+from riv import RestResponse
 from riv.http import HttpResponseNotAllowed, HttpResponseNoContent, HttpResponseCreated, HttpResponseNotImplemented
 from riv.info import RestInformation
 from riv.utils import dictionize_list_for_formsets
@@ -319,6 +322,9 @@ class Resource(object):
 		if not response and not exception:
 			return HttpResponseServerError()
 
+		if isinstance(response, RestResponse):
+			response = self._rest_to_http_response(request, response)
+
 		# TODO: decide for a variable name
 		#if self._sloppy_response:
 		if False:
@@ -465,3 +471,37 @@ class Resource(object):
 		# And back to PUT
 		request.method = 'PUT'
 		request.PUT = request.POST
+
+	def _rest_to_http_response(self, request, restresponse):
+		# TODO: What happens if the is no data attribute?
+		data = restresponse.data
+		print type(data)
+		if self._meta.model:
+			if isinstance(data, QuerySet):
+				if data.model != self._meta.model:
+					# TODO appropriate http error response
+					return HttpResponseNotFound()
+			elif isinstance(data, list):
+				if not isinstance(all(data), self._meta.model):
+					# TODO appropriate http error response
+					return HttpResponseNotFound()
+			elif not isinstance(data, self._meta.model):
+				print data
+				print self._meta.model
+				# TODO appropriate http error response
+				return HttpResponseNotFound()
+
+		# TODO: form errors
+
+		frmt = self.get_format(request)
+		# TODO : What if frmt does not exist
+		# TODO : What if the serializer does not exist?
+		# TODO : inline is missing
+		print self._meta.fields
+		print self._meta.exclude
+		print self._meta.reverse_fields
+		print self._meta.inline
+		print self._meta.map_fields
+		s = serializers.serialize('rest%s' % (frmt), data, fields=self._meta.fields, exclude=self._meta.exclude, reverse_fields=self._meta.reverse_fields, inline=self._meta.inline, map_fields=self._meta.map_fields, extra=self._meta.extra_fields)
+		# TODO: determine the content-type from frmt!
+		return HttpResponse(s, content_type='application/json; charset=utf-8')

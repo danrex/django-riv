@@ -6,6 +6,7 @@ from django.forms.models import modelform_factory, modelformset_factory
 from django.utils import simplejson
 from django.shortcuts import get_object_or_404
 from riv.http import HttpResponseConflict, HttpResponseNotImplemented, HttpResponseNotAllowed, HttpResponseNoContent
+from riv import RestResponse
 
 
 class BaseWrapper(object):
@@ -152,7 +153,8 @@ class StandaloneWrapper(BaseWrapper):
 		# TODO: Who takes care if the queryset is empty? 404..
 		rest_info.queryset = q
 		# TODO: return type? always json?!
-		return HttpResponse(request.tmp_resource.as_json(q), content_type='application/json; charset=utf-8')
+		#return HttpResponse(request.tmp_resource.as_json(q), content_type='application/json; charset=utf-8')
+		return RestResponse(content=q)
 		# TODO. (1) shortcut to add queryset in call, e.g. resource.as_json(queryset)
 		# TODO. (2) shortcut. leave format to resource: resource.return(queryset)
 
