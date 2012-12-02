@@ -63,7 +63,9 @@ class Serializer(python.Serializer):
             # and many-to-many items as well (when asked for inline serialization)
             # Thus, we have to ensure to fail silently because most likely
             # they will not have the same reverse many-to-many relationship.
-            pass
+            #pass
+            # TODO check if this is still correct
+            raise
         # We have no fields defined but we want to exclude fields. Thus, we
         # have to grab the list of all fields and exclude the required ones.
         if not self.selected_fields and self.excluded_fields:
@@ -150,7 +152,15 @@ class Serializer(python.Serializer):
             ) for related in getattr(obj, field.name).iterator()]
         else:
             super(Serializer, self).handle_m2m_field(obj, field)
-            # TODO add handling of resource uris here. see corresponding part in handle_fk_field
+            related = getattr(obj, field.name)
+            view_name = 'object-%s-%s' % (self.api_name, related.model._meta)
+            for pos,val in enumerate(self._current[field.name]):
+                try:
+                    self._current[field.name][pos] = reverse(view_name, kwargs={'id': val})
+                except NoReverseMatch:
+                    # this indicates that no resource has been registered for this model. So 
+                    # we just return the primary key of the object.
+                    pass
 
     def serialize_reverse_fields(self, obj):
         if not self.reverse_fields:
@@ -187,11 +197,17 @@ class Serializer(python.Serializer):
                         map_fields=maps,
                     ) for related in getattr(obj, fieldname).iterator()]
             else:
+                rev = lambda field: reverse('object-%s-%s' % (self.api_name, field._meta), kwargs={'id': field._get_pk_val()})
                 if isinstance(getattr(obj, fieldname), Model):
-                    self._current[fieldname] = getattr(obj, fieldname)._get_pk_val()
+                    try:
+                        self._current[fieldname] = rev(getattr(obj, fieldname))
+                    except NoReverseMatch:
+                        self._current[fieldname] = getattr(obj, fieldname)._get_pk_val()
                 else:
-                    self._current[fieldname] = [related._get_pk_val() for related in getattr(obj, fieldname).iterator()]
-
+                    try:
+                        self._current[fieldname] = [rev(related) for related in getattr(obj, fieldname).iterator()]
+                    except NoReverseMatch:
+                        self._current[fieldname] = [related._get_pk_val() for related in getattr(obj, fieldname).iterator()]
 
     def _get_serialize_options_for_subfield(self, name):
             fields, exclude, maps, inline = None, None, {}, None
