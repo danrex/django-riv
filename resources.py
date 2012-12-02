@@ -45,6 +45,7 @@ __all__ = (
 
 ALLOWED_OPTIONS = (
 	'name', 						# used to create the URLs. Not tied to any model!
+	'api_name',
 	'model',
 	'allowed_methods',
 	'include_object_in_response',
@@ -67,6 +68,7 @@ class ResourceOptions(object):
 	"""
 	def __init__(self, meta):
 		self.model = None
+		self.api_name = None
 		self.allowed_methods = ['GET', 'POST', 'PUT', 'DELETE']
 		self.include_object_in_response = False
 		self.redirect_as_error = False
@@ -150,11 +152,21 @@ class Resource(object):
 		self.name = name or self._meta.name
 		self.display_errors = getattr(settings, 'RIV_DISPLAY_ERRORS', display_errors)
 
+    # URL names have the form: (list|object|multiple)-<api_name>-(<model_name>|<resource_name>)
+    # When we try to reverse-resolve the URLs for a related object we only know the name of the 
+    # object class and the apiname. Thus, we must be able to find the URL using these two 
+    # parameters.
+    # However, if two resources have NO model attached, they would end up with the same url-name.
+    # Thus, in this case we have to use the "name" instead of the "model" to obtain a clean naming
+    # scheme.
 	def _get_urls(self):
+		name = self.name
+		if self._meta.model:
+			name = str(self._meta.model._meta)
 		return patterns('',
-			url(r'^%s/?$' % (self.name), self.handle_request, name='list'),
-			url(r'^%s/(?P<id>\d+)/?$' % (self.name), self.handle_request, name='object'),
-			url(r'^%s/(?P<id_list>\d[;\d]+)/?$' % (self.name), self.handle_request, name='multiple'),
+			url(r'^%s/?$' % (self.name), self.handle_request, name='list-%s-%s' % (self._meta.api_name, name)),
+			url(r'^%s/(?P<id>\d+)/?$' % (self.name), self.handle_request, name='object-%s-%s' % (self._meta.api_name, name)),
+			url(r'^%s/(?P<id_list>\d[;\d]+)/?$' % (self.name), self.handle_request, name='multiple-%s-%s' % (self._meta.api_name, name))
 		)
 	urls = property(_get_urls)
 			
@@ -506,6 +518,6 @@ class Resource(object):
 		print self._meta.reverse_fields
 		print self._meta.inline
 		print self._meta.map_fields
-		s = serializers.serialize('rest%s' % (frmt), data, fields=self._meta.fields, exclude=self._meta.exclude, reverse_fields=self._meta.reverse_fields, inline=self._meta.inline, map_fields=self._meta.map_fields, extra=self._meta.extra_fields)
+		s = serializers.serialize('rest%s' % (frmt), data, api_name=self._meta.api_name, fields=self._meta.fields, exclude=self._meta.exclude, reverse_fields=self._meta.reverse_fields, inline=self._meta.inline, map_fields=self._meta.map_fields, extra=self._meta.extra_fields)
 		# TODO: determine the content-type from frmt!
 		return HttpResponse(s, content_type='application/json; charset=utf-8')

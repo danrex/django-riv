@@ -1,5 +1,6 @@
 from django.db.models import Model
 from django.core.serializers import python, json
+from django.core.urlresolvers import reverse, NoReverseMatch
 from django.utils.encoding import smart_unicode, is_protected_type
 from django.utils import simplejson
 
@@ -18,6 +19,7 @@ class Serializer(python.Serializer):
         #
         # We added the possibility to exclude fields. The handling is done
         # in the start_object method.
+        self.api_name = options.pop('api_name', None)
         self.excluded_fields = options.pop('exclude', [])
         self.extra_fields = options.pop('extra', [])
         self.inline = options.pop('inline', [])
@@ -122,6 +124,15 @@ class Serializer(python.Serializer):
             )
         else:
             super(Serializer, self).handle_fk_field(obj, field)
+            try:
+                related = getattr(obj, field.name)
+                if related:
+                    val = reverse('object-%s-%s' % (self.api_name, related._meta), kwargs={'id': self._current[field.name]})
+                    self._current[field.name] = val
+            except NoReverseMatch:
+                # this indicates that no resource has been registered for this model. So 
+                # we just return the primary key of the object.
+                pass
 
 
     def handle_m2m_field(self, obj, field):
@@ -139,6 +150,7 @@ class Serializer(python.Serializer):
             ) for related in getattr(obj, field.name).iterator()]
         else:
             super(Serializer, self).handle_m2m_field(obj, field)
+            # TODO add handling of resource uris here. see corresponding part in handle_fk_field
 
     def serialize_reverse_fields(self, obj):
         if not self.reverse_fields:
