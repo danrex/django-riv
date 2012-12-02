@@ -9,7 +9,7 @@ from django.core import serializers
 from riv import RestResponse
 from riv.http import HttpResponseNotAllowed, HttpResponseNoContent, HttpResponseCreated, HttpResponseNotImplemented
 from riv.info import RestInformation
-from riv.utils import dictionize_list_for_formsets
+from riv.utils import detect_format, dictionize_list_for_formsets
 from riv.wrappers import BaseWrapper
 
 # A short documentation about the different Method definitions:
@@ -81,8 +81,11 @@ class ResourceOptions(object):
 		self.map_fields = {}
 
 		self.formats = {
-			'json': 'application/json',
-			'xml': 'text/xml',
+			'application/json': 'json',
+			#'application/xml': 'xml',
+			'text/xml': 'xml',
+			#'json': 'application/json',
+			#'xml': 'text/xml',
 		}
 
 		# apply overridden fields from 'class Meta'.
@@ -155,15 +158,16 @@ class Resource(object):
 		)
 	urls = property(_get_urls)
 			
-	# TODO: Compare with utils.detect_format and get rid of one of them.
 	def get_format(self, request):
 		# json is default
-		format = request.GET.get('format', None) or request.META.get('CONTENT_TYPE', None)
+		formats = detect_format(request)
 
-		if format:
-			f = self._meta.formats.get(format, None) or format
-
-		return format or 'json'
+		for f in formats:
+			if self._meta.formats.get(f, None):
+				# We assume the first given format is the default format.
+				return self._meta.formats.get(f)
+			# TODO: define a default format somewhere.
+			return self._meta.formats['application/json']
 
 	#@property
 	#def wrap_request(self):
