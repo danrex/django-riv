@@ -3,24 +3,24 @@ from riv.wrappers import StandaloneWrapper
 from polls.wrappers import PollWrapper
 from polls.models import Poll
 
-class TemporaryResource(Resource):
-	def as_json(self, queryset=None):
-		from django.utils import simplejson
-		from riv.serializers import NewSerializer
-		s = NewSerializer()
-		if not queryset:
-			s.serialize(self._queryset)
-		else:
-			s.serialize(queryset)
-		return s.get_value('json')
+#class TemporaryResource(Resource):
+#	def as_json(self, queryset=None):
+#		from django.utils import simplejson
+#		from riv.serializers.tmp import Serializer
+#		s = Serializer()
+#		if not queryset:
+#			s.serialize(self._queryset)
+#		else:
+#			s.serialize(queryset)
+#		return s.get_value('json')
 
-class ReadOnlyPollResource(TemporaryResource):
+class ReadOnlyPollResource(Resource):
 	_wrapper = PollWrapper()
 	class Meta:
-		name = 'poll'
+		model = Poll
 		allowed_methods = ['GET',]
 
-class PollResource(TemporaryResource):
+class PollResource(Resource):
 	_wrapper = PollWrapper()
 
 	class Meta:
@@ -29,27 +29,27 @@ class PollResource(TemporaryResource):
 		redirect_as_error = True
 		redirect_as_error_code = 401
 
-class ReadWritePollResource(TemporaryResource):
+class ReadWritePollResource(Resource):
 	_wrapper = PollWrapper()
 	class Meta:
 		name = 'poll'
 		allowed_methods = ['GET', 'POST', 'PUT', 'DELETE']
 
-class StandaloneReadOnlyPollResource(TemporaryResource):
+class StandaloneReadOnlyPollResource(Resource):
 	_wrapper = StandaloneWrapper()
 	class Meta:
 		name = 'poll'
 		allowed_methods = ['GET']
 		model = Poll
 
-class StandaloneReadWritePollResource(TemporaryResource):
+class StandaloneReadWritePollResource(Resource):
 	_wrapper = StandaloneWrapper()
 	class Meta:
 		name = 'poll'
 		allowed_methods = ['GET', 'POST', 'PUT', 'DELETE']
 		model = Poll
 
-class StandaloneReadWritePollResource2(TemporaryResource):
+class StandaloneReadWritePollResource2(Resource):
 	_wrapper = StandaloneWrapper()
 	class Meta:
 		name = 'poll'

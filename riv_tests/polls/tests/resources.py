@@ -17,20 +17,20 @@ class ReadOnlyTestCase(BaseTestCase):
 	def testGetPolls(self):
 		response = self.client.get('/rest/ropr/')
 		self.assertEqual(response.status_code, 200)
-		self.assertEqual(response.content, '[{"pub_date": "2011-10-20 18:05:00", "question": "Is it about that?", "id": 2}, {"pub_date": "2011-10-20 18:00:00", "question": "What is it about?", "id": 1}]')
+		self.assertEqual(response.content, '[{"pub_date": "2011-10-20T18:05:00", "question": "Is it about that?", "id": 2}, {"pub_date": "2011-10-20T18:00:00", "question": "What is it about?", "id": 1}]')
 
 	def testGetSinglePoll(self):
 		response = self.client.get('/rest/ropr/1')
 		self.assertEqual(response.status_code, 200)
-		self.assertEqual(response.content, '[{"pub_date": "2011-10-20 18:00:00", "question": "What is it about?", "id": 1}]')
+		self.assertEqual(response.content, '[{"pub_date": "2011-10-20T18:00:00", "question": "What is it about?", "id": 1}]')
 
 	def testPostPoll(self):
-		put_data = '{"pub_date": "2011-10-20 19:00:00", "question": "is that allowed?"}'
+		put_data = '{"pub_date": "2011-10-20T19:00:00", "question": "is that allowed?"}'
 		response = self.client.put('/rest/ropr/', put_data, content_type='application/json')
 		self.assertEqual(response.status_code, 405)
 
 	def testPutPoll(self):
-		put_data = '{"pub_date": "2011-10-20 19:00:00", "question": "is that allowed?"}'
+		put_data = '{"pub_date": "2011-10-20T19:00:00", "question": "is that allowed?"}'
 		response = self.client.put('/rest/ropr/1', put_data, content_type='application/json')
 		self.assertEqual(response.status_code, 405)
 
@@ -43,21 +43,21 @@ class ReadWriteTestCase(BaseTestCase):
 	def testGetPolls(self):
 		response = self.client.get('/rest/rwpr/')
 		self.assertEqual(response.status_code, 200)
-		self.assertEqual(response.content, '[{"pub_date": "2011-10-20 18:05:00", "question": "Is it about that?", "id": 2}, {"pub_date": "2011-10-20 18:00:00", "question": "What is it about?", "id": 1}]')
+		self.assertEqual(response.content, '[{"pub_date": "2011-10-20T18:05:00", "question": "Is it about that?", "id": 2}, {"pub_date": "2011-10-20T18:00:00", "question": "What is it about?", "id": 1}]')
 
 	def testPutPoll(self):
 		"""
 		PUT is UPDATE/REPLACE
 		"""
-		put_data = '{"pub_date": "2011-10-20 19:00:00", "question": "is that allowed?"}'
+		put_data = '{"pub_date": "2011-10-20T19:00:00", "question": "is that allowed?"}'
 		response = self.client.put('/rest/rwpr/1', put_data, content_type='application/json')
 		self.assertEqual(response.status_code, 201)
 		response = self.client.get('/rest/rwpr/')
 		self.assertEqual(response.status_code, 200)
-		self.assertEqual(set(response.content), set('[{"pub_date": "2011-10-20 18:05:00", "question": "Is it about that?", "id": 2}, {"pub_date": "2011-10-20 19:00:00", "question": "is that allowed?", "id": 1}]'))
+		self.assertEqual(set(response.content), set('[{"pub_date": "2011-10-20T18:05:00", "question": "Is it about that?", "id": 2}, {"pub_date": "2011-10-20T19:00:00", "question": "is that allowed?", "id": 1}]'))
 
 	def testPutErrorPoll(self):
-		put_data = '{"pub_date": "2011-10-20 19:00:00", "question": ""}'
+		put_data = '{"pub_date": "2011-10-20T19:00:00", "question": ""}'
 		response = self.client.put('/rest/rwpr/1', put_data, content_type='application/json')
 		self.assertEqual(response.status_code, 403)
 
@@ -73,20 +73,20 @@ class StandaloneReadOnlyTestCase(BaseTestCase):
 		response = self.client.get('/rest/srpr/')
 		self.assertEqual(response.status_code, 200)
 		# Resultset is ordered by id.
-		self.assertEqual(response.content, '[{"pub_date": "2011-10-20 18:00:00", "question": "What is it about?", "id": 1}, {"pub_date": "2011-10-20 18:05:00", "question": "Is it about that?", "id": 2}]')
+		self.assertEqual(response.content, '[{"pub_date": "2011-10-20T18:00:00", "question": "What is it about?", "id": 1}, {"pub_date": "2011-10-20T18:05:00", "question": "Is it about that?", "id": 2}]')
 
 	def testGetSinglePoll(self):
 		response = self.client.get('/rest/srpr/1')
 		self.assertEqual(response.status_code, 200)
-		self.assertEqual(response.content, '[{"pub_date": "2011-10-20 18:00:00", "question": "What is it about?", "id": 1}]')
+		self.assertEqual(response.content, '{"pub_date": "2011-10-20T18:00:00", "question": "What is it about?", "id": 1}')
 
 	def testPostPoll(self):
-		put_data = '{"pub_date": "2011-10-20 19:00:00", "question": "is that allowed?"}'
+		put_data = '{"pub_date": "2011-10-20T19:00:00", "question": "is that allowed?"}'
 		response = self.client.put('/rest/srpr/', put_data, content_type='application/json')
 		self.assertEqual(response.status_code, 405)
 
 	def testPutPoll(self):
-		put_data = '{"pub_date": "2011-10-20 19:00:00", "question": "is that allowed?"}'
+		put_data = '{"pub_date": "2011-10-20T19:00:00", "question": "is that allowed?"}'
 		response = self.client.put('/rest/srpr/1', put_data, content_type='application/json')
 		self.assertEqual(response.status_code, 405)
 
@@ -100,18 +100,18 @@ class StandaloneReadWriteTestCase(BaseTestCase):
 		response = self.client.get('/rest/srwpr/')
 		self.assertEqual(response.status_code, 200)
 		# Resultset is ordered by id.
-		self.assertEqual(response.content, '[{"pub_date": "2011-10-20 18:00:00", "question": "What is it about?", "id": 1}, {"pub_date": "2011-10-20 18:05:00", "question": "Is it about that?", "id": 2}]')
+		self.assertEqual(response.content, '[{"pub_date": "2011-10-20T18:00:00", "question": "What is it about?", "id": 1}, {"pub_date": "2011-10-20T18:05:00", "question": "Is it about that?", "id": 2}]')
 
 	def testGetSinglePoll(self):
 		response = self.client.get('/rest/srwpr/1')
 		self.assertEqual(response.status_code, 200)
-		self.assertEqual(response.content, '[{"pub_date": "2011-10-20 18:00:00", "question": "What is it about?", "id": 1}]')
+		self.assertEqual(response.content, '{"pub_date": "2011-10-20T18:00:00", "question": "What is it about?", "id": 1}')
 
 	def testPutPollWithoutId(self):
 		"""
 		PUT is UPDATE/REPLACE
 		"""
-		put_data = '{"pub_date": "2011-10-20 19:00:00", "question": "is that allowed?"}'
+		put_data = '{"pub_date": "2011-10-20T19:00:00", "question": "is that allowed?"}'
 		response = self.client.put('/rest/srwpr/', put_data, content_type='application/json')
 		self.assertEqual(response.status_code, 405)
 
@@ -119,16 +119,16 @@ class StandaloneReadWriteTestCase(BaseTestCase):
 		"""
 		PUT is UPDATE/REPLACE
 		"""
-		put_data = '{"pub_date": "2011-10-20 19:00:00", "question": "is that allowed?"}'
+		put_data = '{"pub_date": "2011-10-20T19:00:00", "question": "is that allowed?"}'
 		response = self.client.put('/rest/srwpr/1', put_data, content_type='application/json')
 		# object is not included in the response.
 		self.assertEqual(response.status_code, 204)
 		response = self.client.get('/rest/srwpr/')
 		self.assertEqual(response.status_code, 200)
-		self.assertEqual(set(response.content), set('[{"pub_date": "2011-10-20 18:05:00", "question": "Is it about that?", "id": 2}, {"pub_date": "2011-10-20 19:00:00", "question": "is that allowed?", "id": 1}]'))
+		self.assertEqual(set(response.content), set('[{"pub_date": "2011-10-20T18:05:00", "question": "Is it about that?", "id": 2}, {"pub_date": "2011-10-20T19:00:00", "question": "is that allowed?", "id": 1}]'))
 
 	def testPutErrorPoll(self):
-		put_data = '{"pub_date": "2011-10-20 19:00:00", "question": ""}'
+		put_data = '{"pub_date": "2011-10-20T19:00:00", "question": ""}'
 		response = self.client.put('/rest/srwpr/1', put_data, content_type='application/json')
 		self.assertEqual(response.status_code, 403)
 
@@ -156,7 +156,7 @@ class StandaloneReadWriteTestCase2(BaseTestCase):
 		"""
 		PUT is UPDATE/REPLACE
 		"""
-		put_data = '{"pub_date": "2011-10-20 19:00:00", "question": "is that allowed?"}'
+		put_data = '{"pub_date": "2011-10-20T19:00:00", "question": "is that allowed?"}'
 		response = self.client.put('/rest/srwpr2/', put_data, content_type='application/json')
 		self.assertEqual(response.status_code, 405)
 
@@ -164,13 +164,13 @@ class StandaloneReadWriteTestCase2(BaseTestCase):
 		"""
 		PUT is UPDATE/REPLACE
 		"""
-		put_data = '{"pub_date": "2011-10-20 19:00:00", "question": "is that allowed?"}'
+		put_data = '{"pub_date": "2011-10-20T19:00:00", "question": "is that allowed?"}'
 		response = self.client.put('/rest/srwpr2/1', put_data, content_type='application/json')
 		# object IS included in the response.
 		self.assertEqual(response.status_code, 200)
-		self.assertEqual(response.content, '[{"pub_date": "2011-10-20 19:00:00", "question": "is that allowed?", "id": 1}]')
+		self.assertEqual(response.content, '[{"pub_date": "2011-10-20T19:00:00", "question": "is that allowed?", "id": 1}]')
 
 		response = self.client.get('/rest/srwpr2/')
 		self.assertEqual(response.status_code, 200)
-		self.assertEqual(set(response.content), set('[{"pub_date": "2011-10-20 18:05:00", "question": "Is it about that?", "id": 2}, {"pub_date": "2011-10-20 19:00:00", "question": "is that allowed?", "id": 1}]'))
+		self.assertEqual(set(response.content), set('[{"pub_date": "2011-10-20T18:05:00", "question": "Is it about that?", "id": 2}, {"pub_date": "2011-10-20T19:00:00", "question": "is that allowed?", "id": 1}]'))
 
