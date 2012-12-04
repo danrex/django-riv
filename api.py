@@ -1,4 +1,5 @@
 from django.conf.urls import patterns
+from riv.exceptions import ConfigurationError
 
 class Api(object):
     """
@@ -15,16 +16,14 @@ class Api(object):
     def register(self, resource):
         name = getattr(resource, 'name')
         if not name:
-            # TODO Add an error for configuration mistakes
-            raise
+            raise ConfigurationError("Resource %s does not have a name assigned." % (resource,))
         self._resource_list[name] = resource
         resource._meta.api_name = self.name
 
     def unregister(self, resource):
         name = getattr(resource, 'name')
         if not name:
-            # TODO Add an error for configuration mistakes
-            raise
+            raise ConfigurationError("Resource %s does not have a name assigned." % (resource,))
         if name in self._resource_list:
             del self._resource_list[name]
 
