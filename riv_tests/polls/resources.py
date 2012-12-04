@@ -1,7 +1,7 @@
 from riv.resources import Resource
 from riv.wrappers import StandaloneWrapper
 from polls.wrappers import PollWrapper
-from polls.models import Poll
+from polls.models import Poll, Choice
 
 #class TemporaryResource(Resource):
 #	def as_json(self, queryset=None):
@@ -13,6 +13,12 @@ from polls.models import Poll
 #		else:
 #			s.serialize(queryset)
 #		return s.get_value('json')
+
+class StandaloneReadOnlyChoiceResource(Resource):
+	_wrapper = StandaloneWrapper()
+	class Meta:
+		model = Choice
+		allowed_methods = ['GET',]
 
 class ReadOnlyPollResource(Resource):
 	_wrapper = PollWrapper()

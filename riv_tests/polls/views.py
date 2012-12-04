@@ -6,7 +6,7 @@ from models import Poll
 
 from riv.shortcuts import render_to_rest, render_form_error
 
-def index(request):
+def poll_index(request):
 	poll_list = Poll.objects.all().order_by('-pub_date')
 	if request.is_rest():
 		return render_to_rest(poll_list)
@@ -17,7 +17,7 @@ def index(request):
 		'poll_list': poll_list,
 	})
 
-def detail(request, id):
+def poll_detail(request, id):
 	p = get_object_or_404(Poll, pk=id)
 	if request.is_rest():
 		return render_to_rest(p)
@@ -26,13 +26,7 @@ def detail(request, id):
 		#return HttpResponse(request.tmp_resource.as_json(p), content_type='application/json; charset=utf8')
 	return render_to_response('detail.html', {'poll': p})
 
-def results(request, id):
-	pass
-
-def vote(request, id):
-	pass
-
-def update(request, id):
+def poll_update(request, id):
 	p = get_object_or_404(Poll, pk=id)
 	if request.method == 'POST':
 		form = PollForm(request.POST, instance=p)
@@ -52,12 +46,18 @@ def update(request, id):
 		}, context_instance=RequestContext(request)
 	)
 
-def delete(request, id):
+def poll_delete(request, id):
 	p = get_object_or_404(Poll, pk=id)
 	p.delete()
 	if request.is_rest():
 		return HttpResponse(status=204)
 	return render_to_response('deleted.html')
+
+def results(request, id):
+	pass
+
+def vote(request, id):
+	pass
 
 def add(request):
 	pass
