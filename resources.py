@@ -54,6 +54,7 @@ ALLOWED_OPTIONS = (
 	'resource_handling_required',
 	'valid_response_required',
 	'readonly_queryset',
+	'related_as_ids',
 	'fields',
 	'exclude',
 	'inline',
@@ -75,6 +76,7 @@ class ResourceOptions(object):
 		self.redirect_as_error_code = 401
 		self.resource_handling_required = False
 		self.readonly_queryset = False
+		self.related_as_ids = False
 		self.fields = None # has to be None, because [] reads as "no field"
 		self.exclude = []
 		self.inline = []
@@ -518,6 +520,6 @@ class Resource(object):
 		print self._meta.reverse_fields
 		print self._meta.inline
 		print self._meta.map_fields
-		s = serializers.serialize('rest%s' % (frmt), data, api_name=self._meta.api_name, fields=self._meta.fields, exclude=self._meta.exclude, reverse_fields=self._meta.reverse_fields, inline=self._meta.inline, map_fields=self._meta.map_fields, extra=self._meta.extra_fields)
+		s = serializers.serialize('rest%s' % (frmt), data, related_as_ids=self._meta.related_as_ids, api_name=self._meta.api_name, fields=self._meta.fields, exclude=self._meta.exclude, reverse_fields=self._meta.reverse_fields, inline=self._meta.inline, map_fields=self._meta.map_fields, extra=self._meta.extra_fields)
 		# TODO: determine the content-type from frmt!
 		return HttpResponse(s, content_type='application/json; charset=utf-8')
