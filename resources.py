@@ -116,17 +116,10 @@ class ResourceMeta(type):
 	Metaclass for Resources.
 	"""
 	def __new__(cls, name, bases, attrs):
-		# TODO
-		#parents = [b for b in bases if issubclass(b, Resource)]
-		#print parents
 		new_class = super(ResourceMeta, cls).__new__(cls, name, bases, attrs)
 		meta = getattr(new_class, 'Meta', None)
 		
 		new_class._meta = ResourceOptions(meta)
-
-		if getattr(new_class._meta, 'model', None):
-			pass
-		# TODO
 
 		return new_class
 
@@ -134,8 +127,6 @@ class Resource(object):
 	__metaclass__ = ResourceMeta
 
 	_wrapper = BaseWrapper()
-	#_has_errors = False
-	#_error_dict = {}
 
 	@property
 	def __name__(self):
@@ -148,10 +139,6 @@ class Resource(object):
 	@wrapper.setter
 	def wrapper(self, wrapper):
 		self._wrapper = wrapper
-
-	#@wrapper.deleter
-	#def wrapper(self):
-	#	del _wrapper
 
 	def __init__(self, display_errors=False, name=None):
 		if name:
@@ -192,36 +179,25 @@ class Resource(object):
 
 	@csrf_exempt
 	def handle_request(self, request, *args, **kwargs):
-		# not needed anymore. remove. TODO
-		#self._clean_error_variables()
 		rest_info = RestInformation(self._meta)
 
-		# TODO: Find a better solution for that.
 		req_meth = request.method.upper()
-		req_type = None
-		if 'id' in kwargs:
-			req_type = 'object'
-		if 'id_list' in kwargs:
-			req_type = 'multiple'
-		# TODO: Why only GET?
-		if req_meth == 'GET' and not kwargs.has_key('id'):
-			req_type = 'multiple'
+		req_type = self._get_request_type(req_meth, kwargs)
 
-		rest_info.request_method = request.method
-		rest_info.request_type = req_type
+		rest_info.request_method  = req_meth
+		rest_info.request_type    = req_type
 		rest_info.allowed_methods = self._http_allowed_methods(req_type)
 
 		# TODO: Whats happens e.g. if a PUT request does not point to any resource.
 		# Who handles this?
 
-		if not self._check_method(request, req_type):
+		if not self._check_method(req_meth, req_type):
 			return HttpResponseNotAllowed(allow_headers=rest_info.allowed_methods)
 
-		# Add an is_rest() method to the request
+		# Add an is_rest() method to the request (returning True)
 		request.is_rest = lambda: True
 
-		# Add the current resource
-		request.tmp_resource = self # TODO: This should not be needed anymore!
+		# Make the RestInformation object available in the views.
 		request.rest_info = rest_info
 
 		# An exception signals malformed input data resulting
@@ -243,10 +219,11 @@ class Resource(object):
 				raise
 			else:
 				raise Http404()
-		import inspect # TODO: delete
 
-		# TODO delete
+		# TODO delete -- start
+		import inspect
 		print "%s (%s): %s" % (inspect.getframeinfo(inspect.currentframe()).filename, inspect.getframeinfo(inspect.currentframe()).lineno, handling_method)
+		# TODO delete -- end
 
 		self.pre_view(request)
 
@@ -261,8 +238,6 @@ class Resource(object):
 			else:
 				return HttpResponseNotImplemented()
 		except Exception, e:
-			# TODO: Remove
-			print "DO SOMETHING HERE!!!! %s" % (e,)
 			rest_info._has_errors = True
 			handling_exception = e
 			# TODO: Should that be here?!?
@@ -457,19 +432,28 @@ class Resource(object):
 		loader.load(data, map_fields=self._meta.map_fields, model=self._meta.model)
 		return loader.get_querydict()
 		
-	def _check_method(self, request, req_type):
+	def _check_method(self, method, req_type):
 		"""
 		Checks if the request method is allowed.
 		"""
-		req_meth = request.method.upper()
-
-		full_req_type = "%s_%s" % (req_meth, req_type)
-		print req_meth
-		print full_req_type
+		full_req_type = "%s_%s" % (method, req_type)
 		return (
 			full_req_type in self._meta.allowed_methods or \
-			req_meth in self._meta.allowed_methods
+			method in self._meta.allowed_methods
 		)
+
+	def _get_request_type(self, method, kwargs):
+		req_type = None
+		if 'id' in kwargs:
+			req_type = 'object'
+		elif 'id_list' in kwargs:
+			req_type = 'multiple'
+		else:
+			# Batch update/delete is currently not supported, only
+			# GET is allowed.
+			if method == 'GET':
+				req_type = 'multiple'
+		return req_type
 
 	def _handle_put_request(self, request):
 		"""
