@@ -46,7 +46,7 @@ __all__ = (
 )
 
 ALLOWED_OPTIONS = (
-	'name', 						# used to create the URLs. Not tied to any model!
+	'name',							# used to create the URLs. Not tied to any model!
 	'api_name',
 	'model',
 	'allowed_methods',
@@ -70,6 +70,7 @@ class ResourceOptions(object):
 	Contains defaults for all options.
 	"""
 	def __init__(self, meta):
+		self.name = None
 		self.model = None
 		self.api_name = None
 		self.allowed_methods = ['GET', 'POST', 'PUT', 'DELETE']
@@ -95,6 +96,9 @@ class ResourceOptions(object):
 		# apply overridden fields from 'class Meta'.
 		self.apply_overrides(meta)
 
+		if self.name is None and getattr(self, 'model', None):
+			self.name = getattr(self, 'model', None)._meta.verbose_name
+
 	def apply_overrides(self, meta):
 		meta_dict = getattr(meta, '__dict__', None)
 		if meta_dict:
@@ -104,7 +108,7 @@ class ResourceOptions(object):
 				if opt_name in ALLOWED_OPTIONS:
 					setattr(self, opt_name, meta_dict[opt_name])
 				else:
-					raise TypeError('Invalid attribute in Meta: %s' % opt_name)
+					raise ConfigurationError('Invalid attribute in Meta: %s' % opt_name)
 			
 
 class ResourceMeta(type):
@@ -150,8 +154,8 @@ class Resource(object):
 	#	del _wrapper
 
 	def __init__(self, display_errors=False, name=None):
-		# TODO: what if meta does not have a name set?
-		self.name = name or self._meta.name
+		if name:
+			self._meta.name = name
 		self.display_errors = getattr(settings, 'RIV_DISPLAY_ERRORS', display_errors)
 
     # URL names have the form: (list|object|multiple)-<api_name>-(<model_name>|<resource_name>)
@@ -162,13 +166,13 @@ class Resource(object):
     # Thus, in this case we have to use the "name" instead of the "model" to obtain a clean naming
     # scheme.
 	def _get_urls(self):
-		name = self.name
+		name = self._meta.name
 		if self._meta.model:
 			name = str(self._meta.model._meta)
 		return patterns('',
-			url(r'^%s/?$' % (self.name), self.handle_request, name='list-%s-%s' % (self._meta.api_name, name)),
-			url(r'^%s/(?P<id>\d+)/?$' % (self.name), self.handle_request, name='object-%s-%s' % (self._meta.api_name, name)),
-			url(r'^%s/(?P<id_list>\d[;\d]+)/?$' % (self.name), self.handle_request, name='multiple-%s-%s' % (self._meta.api_name, name))
+			url(r'^%s/?$' % (self._meta.name), self.handle_request, name='list-%s-%s' % (self._meta.api_name, name)),
+			url(r'^%s/(?P<id>\d+)/?$' % (self._meta.name), self.handle_request, name='object-%s-%s' % (self._meta.api_name, name)),
+			url(r'^%s/(?P<id_list>\d[;\d]+)/?$' % (self._meta.name), self.handle_request, name='multiple-%s-%s' % (self._meta.api_name, name))
 		)
 	urls = property(_get_urls)
 			

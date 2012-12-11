@@ -2,8 +2,6 @@ class RestInformation(object):
 	"""
 	Contains additional information about the current request and the
 	processing state, that can be useful to the REST handling classes.
-
-	TODO: Why? -- RestInformation is a dictionary-like object.
 	"""
 
 	def __init__(self, meta):
@@ -77,30 +75,3 @@ class RestInformation(object):
 	def _check_model_type(self, m):
 		if m.__name__.lower() != self._resource_meta.model.__name__.lower():
 			raise ValueError('Invalid object-type: %s. Required type is: %s.' % (m.__name__, self._resource_meta.model.__name__))
-
-	#def __getitem__(self, key):
-	#	pass
-
-	#def __setitem__(self, key, value):
-	#	pass
-
-	#def __delitem__(self, key):
-	#	pass
-
-	#def __contains__(self, key):
-	#	pass
-
-	#def get(self, key, default=None):
-	#	pass
-
-	#def pop(self, key):
-	#	pass
-
-	#def keys(self):
-	#	pass
-
-	#def items(self):
-	#	pass
-
-	#def setdefault(self):
-	#	pass
