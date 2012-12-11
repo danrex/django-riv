@@ -8,6 +8,9 @@ from riv.serializers import base
 class Serializer(base.Serializer):
 	internal_use_only = False
 
+	def get_loader(self):
+		return Loader
+
 	def end_serialization(self):
 		super(Serializer, self).end_serialization()
 		simplejson.dump(self.objects, self.stream, cls=DjangoJSONEncoder, **self.options)
@@ -15,6 +18,18 @@ class Serializer(base.Serializer):
 	def getvalue(self):
 		if callable(getattr(self.stream, 'getvalue', None)):
 			return self.stream.getvalue()
+
+class Loader(base.Loader):
+	def pre_loading(self):
+		if isinstance(self.data, basestring):
+			stream = StringIO(self.data)
+		else:
+			stream = self.data
+
+		try:
+			self.objects = simplejson.load(stream)
+		except Exception, e:
+			raise base.LoadingError(e)
 
 def Deserializer(stream_or_string, **options):
     """

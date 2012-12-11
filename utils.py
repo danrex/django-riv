@@ -39,13 +39,6 @@ def media_by_accept_header(request):
 	return [i[0] for i in sorted(media_list, key=lambda x: x[1], reverse=True)]	
 
 
-def dictionize_list_for_formsets(l):
-	d = {}
-	for (counter, data) in enumerate(l):
-		d.update(dict([(unicode("form-"+str(counter)+"-"+str(k)), v) for (k,v) in data.items()]))
-	d.update({'form-TOTAL_FORMS': unicode(counter+1), 'form-INITIAL_FORMS': u'0', 'form-MAX_NUM_FORMS': u''})
-	return d
-
 def traverse_dict(d, keys, return_parent=False):
 	if isinstance(d, dict):
 		if return_parent and len(keys) == 1:

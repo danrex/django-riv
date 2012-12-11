@@ -1,3 +1,4 @@
+import django
 from django.core.exceptions import ValidationError
 from django.http import Http404, HttpResponse, HttpResponseBadRequest, HttpResponseServerError, HttpResponseNotFound
 from django.conf import settings
@@ -7,9 +8,10 @@ from django.db.models.query import QuerySet
 from django.core import serializers
 
 from riv import RestResponse
+from riv.exceptions import ConfigurationError
 from riv.http import HttpResponseNotAllowed, HttpResponseNoContent, HttpResponseCreated, HttpResponseNotImplemented
 from riv.info import RestInformation
-from riv.utils import detect_format, dictionize_list_for_formsets
+from riv.utils import detect_format
 from riv.wrappers import BaseWrapper
 
 # A short documentation about the different Method definitions:
@@ -86,10 +88,8 @@ class ResourceOptions(object):
 
 		self.formats = {
 			'application/json': 'json',
-			#'application/xml': 'xml',
+			'application/xml': 'xml',
 			'text/xml': 'xml',
-			#'json': 'application/json',
-			#'xml': 'text/xml',
 		}
 
 		# apply overridden fields from 'class Meta'.
@@ -173,27 +173,18 @@ class Resource(object):
 	urls = property(_get_urls)
 			
 	def get_format(self, request):
-		# json is default
+		# Returns json as a default
 		formats = detect_format(request)
 
 		for f in formats:
 			if self._meta.formats.get(f, None):
 				# We assume the first given format is the default format.
 				return self._meta.formats.get(f)
-			# TODO: define a default format somewhere.
-			return self._meta.formats['application/json']
-
-	#@property
-	#def wrap_request(self):
-	#	"""
-	#	Took this elegant solution to prevent problems with the CSRF protection
-	#	from Tastypie. Thank you.
-	#	"""
-	#	@csrf_exempt
-	#	def wrapper(request, *args, **kwargs):
-	#		return handle_request(request, *args, **kwargs)
-	#
-	#	return wrapper
+		# This should never hit as "detect_format" always returns
+		# a fallback format.
+		# TODO This should probably not raise a configuration error,
+		# because any format can be requested by the user.
+		raise ConfigurationError("Formats not supported: %s" % (','.join(formats)))
 
 	@csrf_exempt
 	def handle_request(self, request, *args, **kwargs):
@@ -303,14 +294,15 @@ class Resource(object):
 		# convert the data into the correct format and add
 		# it as POST variables.
 		from django.http import QueryDict, MultiValueDict
-		print "%s: %s" % (__name__, request.method)
+		#print "%s: %s" % (__name__, request.method)
 		if not request.method in ['POST', 'PUT']:
 			request._post, request._files = QueryDict('', encoding=request._encoding), MultiValueDict()
 		else:
 			# TODO: multipart (files) not supported.
 			d = self._raw_data_to_dict(request)
-			if isinstance(d, list):
-				d = dictionize_list_for_formsets(d)
+			# TODO remove the next two lines.
+			#if isinstance(d, list):
+			#	d = dictionize_list_for_formsets(d)
 			print d
 			q = QueryDict('', encoding=request._encoding).copy()
 			q.update(d)
@@ -440,12 +432,26 @@ class Resource(object):
 		return list(set(i.split('_')[0] for i in self._meta.allowed_methods if len(i.split('_')) == 1 or i.split('_')[1] == req_type))
 
 	def _raw_data_to_dict(self, request):
-		from django.utils import simplejson
-		# TODO: determine format and return correctly. encoding?
+		try:
+			format = self._meta.formats[request.META.get('CONTENT_TYPE', 'application/json')]
+		except KeyError:
+			pass
+			# TODO throw the correct errorcode for unsupported formats.
 		print request.raw_post_data
-		d = simplejson.loads(request.raw_post_data)
-		print d
-		return d
+		#s = serializers.serialize('rest%s' % (frmt), data, related_as_ids=self._meta.related_as_ids, api_name=self._meta.api_name, fields=self._meta.fields, exclude=self._meta.exclude, reverse_fields=self._meta.reverse_fields, inline=self._meta.inline, map_fields=self._meta.map_fields, extra=self._meta.extra_fields)
+		try:
+			Loader = serializers.get_serializer('rest%s' % format)().get_loader()
+		except serializers.base.SerializerDoesNotExist:
+			# TODO error message!
+			pass
+		# TODO the options are missing!
+		if django.VERSION[0] == 1 and django.VERSION[1] >= 4:
+			data = request.body
+		else:
+			data = request.raw_post_data
+		loader = Loader()
+		loader.load(data, map_fields=self._meta.map_fields, model=self._meta.model)
+		return loader.get_querydict()
 		
 	def _check_method(self, request, req_type):
 		"""
@@ -520,6 +526,7 @@ class Resource(object):
 		print self._meta.reverse_fields
 		print self._meta.inline
 		print self._meta.map_fields
+		print frmt
 		s = serializers.serialize('rest%s' % (frmt), data, related_as_ids=self._meta.related_as_ids, api_name=self._meta.api_name, fields=self._meta.fields, exclude=self._meta.exclude, reverse_fields=self._meta.reverse_fields, inline=self._meta.inline, map_fields=self._meta.map_fields, extra=self._meta.extra_fields)
 		# TODO: determine the content-type from frmt!
 		return HttpResponse(s, content_type='application/json; charset=utf-8')

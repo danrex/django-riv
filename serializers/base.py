@@ -8,11 +8,17 @@ from riv.utils import traverse_dict, create_tree_with_val
 
 SEPARATOR = '__'
 
+class LoadingError(Exception):
+    pass
+
 class Serializer(python.Serializer):
     """
     This is the base for all REST serializers.
     """
     internal_use_only = False
+
+    def get_loader(self):
+        return Loader
 
     def serialize(self, queryset, **options):
         # The "fields" option is handled by the superclass serializer.
@@ -170,17 +176,6 @@ class Serializer(python.Serializer):
             if self.inline and fieldname in self.inline:
                 tmpserializer = Serializer()
                 fields, exclude, maps, inline = self._get_serialize_options_for_subfield(fieldname)
-                #self._current[fieldname] = []
-                #for related in getattr(obj, fieldname).iterator():
-                #   # Get all fields from the "related" object that have a relation
-                #   # to the current "obj" and exlude this field. Otherwise we will 
-                #   # end up in an infinite loop. 
-                #   rel_exclude = [x.name for x in related._meta.local_fields if x.rel and isinstance(obj, x.rel.to)]
-                #   if exclude and rel_exclude:
-                #       exclude.extend(rel_exclude)
-                #   else:
-                #       exclude = rel_exclude
-                #   print exclude
                 if isinstance(getattr(obj, fieldname), Model):
                     self._current[fieldname] = tmpserializer.serialize(
                         getattr(obj, fieldname),
@@ -243,44 +238,94 @@ def Deserializer(object_list, **options):
     It's expected that you pass the Python objects themselves (instead of a
     stream or a string) to the constructor
     """
-    new_list = rearrange_user_input(object_list, **options)
-    return python.Deserializer(new_list)
+    loader = Loader()
+    loader.load(object_list, **options)
+    loader.rearrange_for_deserialization()
+    return python.Deserializer(loader.get_objects())
 
-def rearrange_user_input(object_list, **options):
+
+class Loader:
     """
-    Rearrange the input back to fit into the standard django deserializer.
-
-    IMPORTANT: We assume that ALL objects in the list belong to the same
-    model!
+    This class loads the user input and rearranges the fields that
+    have been mapped by the serializer. The input can be transformed
+    in a formset-like input which can be treated as a normal form
+    POST.
     """
-    map_fields = options.pop('map_fields', None) # "map" is reserved!
-    model = options.pop('model', None)
+    internal_use_only = False
 
-    # Ensure we always have a list of objects.
-    if not isinstance(object_list, list):
-        object_list = [object_list,]
+    def load(self, queryset, **options):
+        self.map_fields = options.pop('map_fields', None) # "map" is reserved!
+        self.model = options.pop('model', None)
+        # data will contain the raw material as it was given to the
+        # load method. objects will contain the deserialized data
+        # as python list and dictionaries.
+        # For the base serializer both are the same.
+        self.data = self.objects = queryset
 
-    new_list = []
-    for obj in object_list:
-        pk = obj.get('pk', obj.get('id', None))
-        new_list.append({
-            'pk': pk,
-            'model': model,
-            'fields': obj
-        })
+        self.pre_loading()
+        # Ensure we always have a list of objects.
+        if not isinstance(self.objects, list):
+            self.objects = [self.objects,]
 
-    if map_fields:
-        for k,v in map_fields.items():
+        self.reverse_map_fields()
+        self.post_loading()
+
+    def pre_loading(self):
+        pass
+
+    def post_loading(self):
+        pass
+
+    def get_querydict(self):
+        if isinstance(self.objects, list):
+            self.dictionize_list_for_formsets()
+        return self.get_objects()
+
+    def get_objects(self):
+        return self.objects
+
+    def dictionize_list_for_formsets(self):
+        d = {}
+        for (counter, data) in enumerate(self.objects):
+            d.update(dict([(unicode("form-"+str(counter)+"-"+str(k)), v) for (k,v) in data.items()]))
+        d.update({'form-TOTAL_FORMS': unicode(counter+1), 'form-INITIAL_FORMS': u'0', 'form-MAX_NUM_FORMS': u''})
+        self.objects = d
+
+    def reverse_map_fields(self, objects=None):
+        if not objects:
+            objects = self.objects
+        if not self.map_fields:
+            return
+        for k,v in self.map_fields.items():
             source, target = {}, {}
             source_keys = v.split(SEPARATOR)
             target_keys = k.split(SEPARATOR)
             try:
-                source = traverse_dict(object_list[0], source_keys, return_parent=True)
+                source = traverse_dict(objects[0], source_keys, return_parent=True)
             except KeyError:
                 continue
-            for obj in new_list:
-                create_tree_with_val(obj['fields'], target_keys, source[source_keys[-1]])
+            for obj in objects:
+                create_tree_with_val(obj, target_keys, source[source_keys[-1]])
             del source[source_keys[-1]]
 
-    return new_list
+
+    def rearrange_for_deserialization(self):
+        """
+        Rearrange the input back to fit into the standard django deserializer.
+
+        IMPORTANT: We assume that ALL objects in the list belong to the same
+        model!
+        """
+        new_list = []
+        for obj in self.objects:
+            pk = obj.get('pk', obj.get('id', None))
+            new_list.append({
+                'pk': pk,
+                'model': self.model,
+                'fields': obj
+            })
+
+        self.reverse_map_fields(new_list)
+
+        self.objects = new_list
 
