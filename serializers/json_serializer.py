@@ -3,7 +3,7 @@ from django.utils import simplejson
 from django.core.serializers.json import DjangoJSONEncoder, DateTimeAwareJSONEncoder
 from django.core.serializers.base import DeserializationError
 
-from riv.serializers import base
+from riv.serializers import base_serializer as base
 
 class Serializer(base.Serializer):
 	internal_use_only = False
