@@ -86,8 +86,12 @@ class Serializer(python.Serializer):
             self._current[obj._meta.pk.name] = smart_unicode(obj._get_pk_val(), strings_only=True)
         if self.extra_fields:
             for field in self.extra_fields:
-                if getattr(obj, field, None):
-                    self._current[field] = getattr(obj, field, None)
+                field_obj = getattr(obj, field, None)
+                if field_obj:
+                    if callable(field_obj):
+                        self._current[field] = field_obj()
+                    else:
+                        self._current[field] = field_obj
         if self.map_fields:
             for key,value in self.map_fields.iteritems():
                 if self._current.has_key(key):
