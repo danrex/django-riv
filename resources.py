@@ -299,8 +299,11 @@ class Resource(object):
             request._post, request._files = QueryDict('', encoding=request._encoding), MultiValueDict()
         else:
             # TODO multipart (files) not supported.
-            d = self._raw_data_to_dict(request)
             q = QueryDict('', encoding=request._encoding).copy()
+            d = self._raw_data_to_dict(request)
+            for key in d.keys():
+                if isinstance(d[key], list):
+                    q.setlist(key, d.pop(key))
             q.update(d)
             request.method = 'POST'
             request._post = q
