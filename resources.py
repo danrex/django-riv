@@ -49,6 +49,7 @@ ALLOWED_OPTIONS = (
     'name',                         # used to create the URLs. Not tied to any model!
     'api_name',
     'model',
+    'reverse',
     'allowed_methods',
     'include_object_in_response',
     'redirect_as_error',
@@ -73,6 +74,8 @@ class ResourceOptions(object):
     def __init__(self, meta):
         self.name = None
         self.model = None
+        # Use this resource to reverse URI resolution.
+        self.reverse = False
         self.api_name = None
         self.allowed_methods = ['GET', 'POST', 'PUT', 'DELETE']
         self.include_object_in_response = False
@@ -153,9 +156,10 @@ class Resource(object):
     # However, if two resources have NO model attached, they would end up with the same url-name.
     # Thus, in this case we have to use the "name" instead of the "model" to obtain a clean naming
     # scheme.
-    def _get_urls(self):
+    def _get_urls(self, reverse=None):
         name = self._meta.name
-        if self._meta.model:
+        reverse = self._meta.reverse or reverse
+        if self._meta.model and reverse:
             name = str(self._meta.model._meta)
         return patterns('',
             url(r'^%s/?$' % (self._meta.name), self.handle_request, name='list-%s-%s' % (self._meta.api_name, name)),

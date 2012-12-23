@@ -17,7 +17,13 @@ class Api(object):
         name = getattr(resource._meta, 'name')
         if not name:
             raise ConfigurationError("Resource %s does not have a name assigned." % (resource,))
-        self._resource_list[name] = resource
+        if resource._meta.model:
+            if self._resource_list.has_key(resource._meta.model):
+                self._resource_list[resource._meta.model][name] = resource
+            else:
+                self._resource_list[resource._meta.model] = {name: resource}
+        else:
+            self._resource_list[name] = {name: resource}
         resource._meta.api_name = self.name
 
     def unregister(self, resource):
@@ -29,8 +35,14 @@ class Api(object):
 
     def _get_urls(self):
         urlpatterns = patterns('')
-        for name,resource in self._resource_list.items():
-            urlpatterns += resource.urls
+        for model_or_name,resources in self._resource_list.items():
+            if len(resources) > 1:
+                for name,resource in resources.items():
+                    # TODO add a counter here and throw an error if two resources have reverse set to True.
+                    urlpatterns += resource.urls
+            else:
+                urlpatterns += resources.values()[0]._get_urls(reverse=True)
+            #urlpatterns += resource.urls
         return urlpatterns
 
     urls = property(_get_urls)
