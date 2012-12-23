@@ -1,3 +1,4 @@
+import sys
 from django.core.exceptions import ObjectDoesNotExist, MultipleObjectsReturned
 from django.utils.importlib import import_module
 from django.db import transaction
@@ -7,6 +8,7 @@ from django.utils import simplejson
 from django.shortcuts import get_object_or_404
 from riv.http import HttpResponseConflict, HttpResponseNotImplemented, HttpResponseNotAllowed, HttpResponseNoContent
 from riv import RestResponse
+from riv.shortcuts import render_to_rest, render_form_error_to_rest
 
 
 class BaseWrapper(object):
@@ -23,6 +25,10 @@ class BaseWrapper(object):
         'POST_multiple': 'create_multiple',
         'PUT_multiple': 'update_multiple',
         'DELETE_multiple': 'delete_multiple',
+        'GET_list': 'read_multiple',
+        'POST_list': 'create_multiple',
+        'PUT_list': 'update_multiple',
+        'DELETE_list': 'delete_multiple',
     }
 
     def get_handler_for(self, full_req_meth):
@@ -49,7 +55,7 @@ class BaseWrapper(object):
         return callback
 
     def read(self, request, *args, **kwargs):
-        raise Http404()
+        raise Http404('Subclass the BaseWrapper and implement the "%s" method to make this resource available' % sys._getframe().f_code.co_name)
         from django.contrib import auth
         # This is temporary testing!!
         #user = auth.authenticate(username='cgraf', password='hallo')
@@ -59,32 +65,27 @@ class BaseWrapper(object):
         #else:
         #   return client.list_projects(request)
 
+    # This is the original comment.
     def create(self, request, *args, **kwargs):
-        raise Http404()
+        raise Http404('Subclass the BaseWrapper and implement the "%s" method to make this resource available' % sys._getframe().f_code.co_name)
 
     def update(self, request, *args, **kwargs):
-        raise Http404()
+        raise Http404('Subclass the BaseWrapper and implement the "%s" method to make this resource available' % sys._getframe().f_code.co_name)
 
     def delete(self, request, *args, **kwargs):
-        raise Http404()
-    
-    # TODO handling of multiple ids. Idea:
-    @transaction.commit_manually        
-    def create_multiple(self, request, *args, **kwargs):
-        #foreach id in ids:
-        #   self.create(...)
-        #   check_for_error...
-        # if error:
-        #   transaction.rollback()
-        #   return error
-        # else:
-        #   transaction.commit()
-        # ...
-        pass
+        raise Http404('Subclass the BaseWrapper and implement the "%s" method to make this resource available' % sys._getframe().f_code.co_name)
 
-    read_multiple = read
-    update_multiple = update
-    delete_multiple = delete
+    def read_multiple(self, request, *args, **kwargs):
+        raise Http404('Subclass the BaseWrapper and implement the "%s" method to make this resource available' % sys._getframe().f_code.co_name)
+
+    def create_multiple(self, request, *args, **kwargs):
+        raise Http404('Subclass the BaseWrapper and implement the "%s" method to make this resource available' % sys._getframe().f_code.co_name)
+
+    def update_multiple(self, request, *args, **kwargs):
+        raise Http404('Subclass the BaseWrapper and implement the "%s" method to make this resource available' % sys._getframe().f_code.co_name)
+
+    def delete_multiple(self, request, *args, **kwargs):
+        raise Http404('Subclass the BaseWrapper and implement the "%s" method to make this resource available' % sys._getframe().f_code.co_name)
 
     def _get_callable(self, view):
         """
@@ -150,13 +151,9 @@ class StandaloneWrapper(BaseWrapper):
         else:
             q = model.objects.all()
 
-        # TODO: Who takes care if the queryset is empty? 404..
-        rest_info.queryset = q
-        # TODO: return type? always json?!
-        #return HttpResponse(request.tmp_resource.as_json(q), content_type='application/json; charset=utf-8')
-        return RestResponse(content=q)
-        # TODO. (1) shortcut to add queryset in call, e.g. resource.as_json(queryset)
-        # TODO. (2) shortcut. leave format to resource: resource.return(queryset)
+        # Note an empty queryset is still a valid response and should return 200. Thus, no special
+        # case to handle.
+        return render_to_rest(q)
 
     # TODO: What if the users wants to create 2 similar objects? Shouldn't we allow it?
     def create(self, request, *args, **kwargs):
@@ -182,21 +179,21 @@ class StandaloneWrapper(BaseWrapper):
         print formset.is_valid()
         print formset.errors
         if formset.is_valid():
+            # TODO
             objects = formset.save()
-            url_list = []
-            for obj in objects:
-                print obj
-                url_list.append("%s%s" % (request.get_full_path(), obj.id))
-                print url_list
-            #format = resource.get_format(request) # TODO...
-            format = 'json'
-            if format == 'json':
-                return HttpResponse(simplejson.dumps(url_list))
-            else:
-                return # TODO
+            return render_to_rest(objects)
+            #url_list = []
+            #for obj in objects:
+            #    print obj
+            #    url_list.append("%s%s" % (request.get_full_path(), obj.id))
+            #    print url_list
+            #format = request.rest_info.format
+            #if format == 'json':
+            #    return HttpResponse(simplejson.dumps(url_list))
+            #else:
+            #    return # TODO
         else:
-            rest_info.error_by_form(formset)
-            return HttpResponse()
+            return render_form_error_to_rest(formset)
 
     def update(self, request, *args, **kwargs):
         rest_info = request.rest_info
@@ -231,7 +228,7 @@ class StandaloneWrapper(BaseWrapper):
             # changed the request type to POST for views.
             return HttpResponseNotAllowed(rest_info.allowed_methods)
 
-        # TODO: Here it has to be decided whether the application
+        # TODO Here it has to be decided whether the application
         # wants to allow the creation of a new entity with a given
         # id from the outside world.
         #entity = model.objects.get(pk=entity_id)
@@ -241,24 +238,14 @@ class StandaloneWrapper(BaseWrapper):
 
         if form.is_valid():
             e = form.save()
-            # TODO: Should we leave this to the Resource?
-            if rest_info.include_object_in_response:
-                # TODO: format = resource.get_format(request)
-                format = 'json'
-                if format == 'json':
-                    # TODO: very temporary... no serializer available, yet.
-                    from django.core import serializers
-                    return HttpResponse(serializers.serialize("json", [ e, ]))
-                else:
-                    return # TODO
-            else:
-                return HttpResponseNoContent() # according to rfc2616
+            # Always return the object. The Resource decides if it
+            # will be included in the response or not.
+            return render_to_rest(e)
         else:
-            rest_info.error_by_form(form)
-            return HttpResponse()
+            return render_form_error_to_rest(form)
 
     def update_multiple(self, request, *args, **kwargs):
-        # TODO: This has to be implemented. ModelFormSets now if they
+        # TODO This has to be implemented. ModelFormSets now if they
         # have to create or update an entity by the hidden submission
         # of the id: <input type="hidden" name="form-0-id" id="id_form-0-id" />
         # Thus, we have to add the ids from the URI as POST values or
@@ -341,8 +328,7 @@ class StandaloneWrapper(BaseWrapper):
 
         q.delete()
         return HttpResponse()
-    
 
     read_multiple = read
-    #create_multiple = create # TODO: This is missing.
+    create_multiple = create
     delete_multiple = delete
