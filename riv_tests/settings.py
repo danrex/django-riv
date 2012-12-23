@@ -143,6 +143,7 @@ LOGGING = {
 
 RIV_DISPLAY_ERRORS = True
 SERIALIZATION_MODULES = {
-	'rest': 'riv.serializers.base',
-	'restjson': 'riv.serializers.json',
+	'rest': 'riv.serializers.base_serializer',
+	'restjson': 'riv.serializers.json_serializer',
+	'restxml': 'riv.serializers.xml_serializer',
 }
