@@ -1,3 +1,7 @@
+# TODO 
+# 1) add the queryset checks over here in the RestResponse class
+# 2) remove all unnecessary stuff
+
 class RestInformation(object):
     """
     Contains additional information about the current request and the
@@ -13,6 +17,9 @@ class RestInformation(object):
         self.request_method = None
         # None, 'object', or 'multiple
         self.request_type = None
+        self.format = None
+        # This lists the allowed methods for the given request type (object, multiple, list)
+        # This information is required in a RFC compliant "HttpNotAllowed" response.
         self.allowed_methods = []
 
     @property

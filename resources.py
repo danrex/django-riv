@@ -11,8 +11,8 @@ from riv import RestResponse
 from riv.exceptions import ConfigurationError
 from riv.http import HttpResponseNotAllowed, HttpResponseNoContent, HttpResponseCreated, HttpResponseNotImplemented
 from riv.info import RestInformation
-from riv.utils import detect_format
 from riv.wrappers import BaseWrapper
+from riv.mime import formats, get_available_format, get_mime_for_format
 
 # A short documentation about the different Method definitions:
 # (http://www.w3.org/Protocols/rfc2616/rfc2616-sec9.html)
@@ -53,6 +53,7 @@ ALLOWED_OPTIONS = (
     'include_object_in_response',
     'redirect_as_error',
     'redirect_as_error_code',
+    'fallback_on_unsupported_format',
     'resource_handling_required',
     'valid_response_required',
     'readonly_queryset',
@@ -77,6 +78,12 @@ class ResourceOptions(object):
         self.include_object_in_response = False
         self.redirect_as_error = False
         self.redirect_as_error_code = 401
+        # Note: HTTP/1.1 servers are allowed to return responses which are not acceptable 
+        # according to the accept headers sent in the request. In some cases, this may 
+        # even be preferable to sending a 406 response. User agents are encouraged to 
+        # inspect the headers of an incoming response to determine if it is acceptable.
+        # -- Uses 'JSON' as fallback or sends a 406 error code if set to false.
+        self.fallback_on_unsupported_format = True
         self.resource_handling_required = False
         self.readonly_queryset = False
         self.related_as_ids = False
@@ -86,12 +93,6 @@ class ResourceOptions(object):
         self.reverse_fields = []
         self.extra_fields = []
         self.map_fields = {}
-
-        self.formats = {
-            'application/json': 'json',
-            'application/xml': 'xml',
-            'text/xml': 'xml',
-        }
 
         # apply overridden fields from 'class Meta'.
         self.apply_overrides(meta)
@@ -109,7 +110,7 @@ class ResourceOptions(object):
                     setattr(self, opt_name, meta_dict[opt_name])
                 else:
                     raise ConfigurationError('Invalid attribute in Meta: %s' % opt_name)
-            
+
 
 class ResourceMeta(type):
     """
@@ -118,7 +119,7 @@ class ResourceMeta(type):
     def __new__(cls, name, bases, attrs):
         new_class = super(ResourceMeta, cls).__new__(cls, name, bases, attrs)
         meta = getattr(new_class, 'Meta', None)
-        
+
         new_class._meta = ResourceOptions(meta)
 
         return new_class
@@ -187,6 +188,14 @@ class Resource(object):
         rest_info.request_method  = req_meth
         rest_info.request_type    = req_type
         rest_info.allowed_methods = self._http_allowed_methods(req_type)
+        rest_info.format          = get_available_format(request)
+
+        if not rest_info.format:
+            if self._meta.fallback_on_unsupported_format:
+                # TODO global constant
+                rest_info.format = 'json'
+            else:
+                return HttpResponseNotAcceptable()
 
         # TODO: Whats happens e.g. if a PUT request does not point to any resource.
         # Who handles this?
@@ -412,18 +421,21 @@ class Resource(object):
 
     def _raw_data_to_dict(self, request):
         try:
-            format = self._meta.formats[request.META.get('CONTENT_TYPE', 'application/json')]
+            format = formats[request.META.get('CONTENT_TYPE', 'application/json')]
         except KeyError:
-            pass
-            # TODO throw the correct errorcode for unsupported formats.
+            if settings.DEBUG and self.display_errors:
+                raise UnsupportedFormat('Format %s is not supported. Check if you included the serializers in the settings file.' % (request.META.get('CONTENT_TYPE', 'application/json')))
+            else:
+                return HttpResponseUnsupportedMediaType()
         print request.raw_post_data
         #s = serializers.serialize('rest%s' % (frmt), data, related_as_ids=self._meta.related_as_ids, api_name=self._meta.api_name, fields=self._meta.fields, exclude=self._meta.exclude, reverse_fields=self._meta.reverse_fields, inline=self._meta.inline, map_fields=self._meta.map_fields, extra=self._meta.extra_fields)
         try:
             Loader = serializers.get_serializer('rest%s' % format)().get_loader()
         except serializers.base.SerializerDoesNotExist:
-            # TODO error message!
-            pass
-        # TODO the options are missing!
+            if settings.DEBUG and self.display_errors:
+                raise UnsupportedFormat('Format %s is not supported. Check if you included the serializers in the settings file.' % (format,))
+            else:
+                return HttpResponseUnsupportedMediaType()
         if django.VERSION[0] == 1 and django.VERSION[1] >= 4:
             data = request.body
         else:
