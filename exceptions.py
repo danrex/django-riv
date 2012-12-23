@@ -1,7 +1,7 @@
 class RestfulAPIError(Exception):
     pass
 
-class ConfigurationError(Exception):
+class ConfigurationError(RestfulAPIError):
     pass
 
 class UnsupportedFormat(RestfulAPIError):

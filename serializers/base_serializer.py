@@ -280,9 +280,12 @@ class Loader:
     def post_loading(self):
         pass
 
-    def get_querydict(self):
+    def get_querydict(self, force_batch=False):
         if isinstance(self.objects, list):
-            self.dictionize_list_for_formsets()
+            if force_batch or len(self.objects) > 1:
+                self.dictionize_list_for_formsets()
+            else:
+                return self.get_objects()[0]
         return self.get_objects()
 
     def get_objects(self):
@@ -328,8 +331,6 @@ class Loader:
                 'model': self.model,
                 'fields': obj
             })
-
-        self.reverse_map_fields(new_list)
 
         self.objects = new_list
 

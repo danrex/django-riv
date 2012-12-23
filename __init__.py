@@ -1,5 +1,5 @@
 class RestResponse(object):
 
 	def __init__(self, content=None, form=None):
-		self.data = content
+		self.content = content
 		self.form = form

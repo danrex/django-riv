@@ -8,8 +8,9 @@ from django.db.models.query import QuerySet
 from django.core import serializers
 
 from riv import RestResponse
-from riv.exceptions import ConfigurationError
-from riv.http import HttpResponseNotAllowed, HttpResponseNoContent, HttpResponseCreated, HttpResponseNotImplemented
+from riv.exceptions import ConfigurationError, UnsupportedFormat
+from riv.http import HttpResponseNotAllowed, HttpResponseNoContent, HttpResponseCreated, HttpResponseNotImplemented, \
+        HttpResponseNotAcceptable, HttpResponseUnsupportedMediaType
 from riv.info import RestInformation
 from riv.wrappers import BaseWrapper
 from riv.mime import formats, get_available_format, get_mime_for_format
@@ -30,6 +31,10 @@ from riv.mime import formats, get_available_format, get_mime_for_format
 #   301 (Moved permanently).
 #
 # POST:
+# - POST is designed to handle a given resource not to point to a resource object
+# - If a resource has been created on the origin server, the response SHOULD 
+#   be 201 (Created) and contain an entity which describes the status of the 
+#   request and refers to the new resource, and a Location header
 #
 # GET:
 #
@@ -51,6 +56,8 @@ ALLOWED_OPTIONS = (
     'model',
     'reverse',
     'allowed_methods',
+    'allow_batch_creation',
+    'allow_batch_deletion',
     'include_object_in_response',
     'redirect_as_error',
     'redirect_as_error_code',
@@ -78,7 +85,12 @@ class ResourceOptions(object):
         self.reverse = False
         self.api_name = None
         self.allowed_methods = ['GET', 'POST', 'PUT', 'DELETE']
+        # Allow to supply multiple entities on a POST request
+        self.allow_batch_creation = False
+        # Allow to delete all objects
+        self.allow_batch_deletion = False
         self.include_object_in_response = False
+        # Treat it as an error using the code if a view returns with a redirect.
         self.redirect_as_error = False
         self.redirect_as_error_code = 401
         # Note: HTTP/1.1 servers are allowed to return responses which are not acceptable 
@@ -89,12 +101,19 @@ class ResourceOptions(object):
         self.fallback_on_unsupported_format = True
         self.resource_handling_required = False
         self.readonly_queryset = False
+        # Use just the id to include related objects instead of building a resource URI
         self.related_as_ids = False
+        # Only serialize the specified fields.
         self.fields = None # has to be None, because [] reads as "no field"
+        # Exclude the specified fields from serialization.
         self.exclude = []
+        # Include a serialized version of the given related objects.
         self.inline = []
+        # Include the specified reverse relationships in the serialized object.
         self.reverse_fields = []
+        # Serialize the following additional attributes.
         self.extra_fields = []
+        # Map the following fields to other names.
         self.map_fields = {}
 
         # apply overridden fields from 'class Meta'.
@@ -167,20 +186,8 @@ class Resource(object):
             url(r'^%s/(?P<id_list>\d[;\d]+)/?$' % (self._meta.name), self.handle_request, name='multiple-%s-%s' % (self._meta.api_name, name))
         )
     urls = property(_get_urls)
-            
-    def get_format(self, request):
-        # Returns json as a default
-        formats = detect_format(request)
-
-        for f in formats:
-            if self._meta.formats.get(f, None):
-                # We assume the first given format is the default format.
-                return self._meta.formats.get(f)
-        # This should never hit as "detect_format" always returns
-        # a fallback format.
-        # TODO This should probably not raise a configuration error,
-        # because any format can be requested by the user.
-        raise ConfigurationError("Formats not supported: %s" % (','.join(formats)))
+    # TODO set reverse to True for this one.
+    urls_with_reverse = property(_get_urls)
 
     @csrf_exempt
     def handle_request(self, request, *args, **kwargs):
@@ -201,7 +208,8 @@ class Resource(object):
             else:
                 return HttpResponseNotAcceptable()
 
-        # TODO: Whats happens e.g. if a PUT request does not point to any resource.
+
+        # TODO Whats happens e.g. if a PUT request does not point to any resource.
         # Who handles this?
 
         if not self._check_method(req_meth, req_type):
@@ -251,6 +259,7 @@ class Resource(object):
             else:
                 return HttpResponseNotImplemented()
         except Exception, e:
+            # TODO rest_info has errors should not be used anymore.
             rest_info._has_errors = True
             handling_exception = e
             # TODO: Should that be here?!?
@@ -286,16 +295,11 @@ class Resource(object):
         # convert the data into the correct format and add
         # it as POST variables.
         from django.http import QueryDict, MultiValueDict
-        #print "%s: %s" % (__name__, request.method)
         if not request.method in ['POST', 'PUT']:
             request._post, request._files = QueryDict('', encoding=request._encoding), MultiValueDict()
         else:
-            # TODO: multipart (files) not supported.
+            # TODO multipart (files) not supported.
             d = self._raw_data_to_dict(request)
-            # TODO remove the next two lines.
-            #if isinstance(d, list):
-            #   d = dictionize_list_for_formsets(d)
-            print d
             q = QueryDict('', encoding=request._encoding).copy()
             q.update(d)
             request.method = 'POST'
@@ -308,7 +312,7 @@ class Resource(object):
         return a REST compliant response.
 
         We expect one of the following results from the handling method:
-         
+
         - a 2xx response
         - a 2xx response with an invalid form
         - an arbitrary unhandled exception
@@ -316,10 +320,9 @@ class Resource(object):
         - a 3xx response (redirect)
         - a 4xx or 5xx error code
         - a response object which is not an HttpResponse instance
-        
+
         Did we miss something?
         """
-        # TODO: Restructure error handling. It is messed up.
 
         if not response and not exception:
             return HttpResponseServerError()
@@ -339,15 +342,14 @@ class Resource(object):
         (response and response.status_code == 404):
             return HttpResponseNotFound()
 
+        if exception:
+            if settings.DEBUG and self.display_errors:
+                raise
+            else:
+                return HttpResponseServerError()
+
         if response and response.status_code == 500:
             return HttpResponseServerError()
-
-        if request.rest_info._has_errors:
-            response = HttpResponse(status=403)
-            # TODO: Return error dict in the correct format!
-            from django.utils import simplejson
-            response.content = simplejson.dumps(request.rest_info._error_dict)
-            return response
 
         # A view should always return a valid HttpResponse. However, it is up
         # to the user if he requires a valid response or not. Otherwise
@@ -364,11 +366,12 @@ class Resource(object):
             #   return HttpResponseNoContent()
 
         if response.status_code >= 300 and response.status_code < 400:
-            # TODO: if rediret_as_error is defined one has to assure that
-            # rediret_as_error_errocode is also defined.
             if self._meta.redirect_as_error:
-                #return HttpResponseResponse(status=self._meta.redirect_as_error_code)
-                # ...right?
+                if not self._meta.redirect_as_error_code:
+                    if settings.DEBUG and self.display_errors:
+                        raise ConfigurationError('redirect_as_error defined without redirect_as_error_code')
+                    else:
+                        raise HttpResponseServerError()
                 return HttpResponse(status=self._meta.redirect_as_error_code)
 
         if request.rest_info.request_method == 'DELETE':
@@ -376,15 +379,11 @@ class Resource(object):
                     return HttpResponseNoContent()
         elif request.rest_info.request_method in ['POST', 'PUT']:
                 if response.status_code == 200:
-                    # TODO: This is wrong. PUT should ONLY return 201 if a new 
-                    # object is created. otherwise it should return 200 (ok) or
-                    # 204 (no content) if no content is included.
-                    # TODO: We need a possibility to distinguish whether the object
-                    # has been updated or newly created.
-                    if self._meta.include_object_in_response:
+                    if request.rest_info.request_type == 'list':
                         response.status_code = 201
-                    else:
-                        return HttpResponseCreated()
+                        if self._meta.include_object_in_response:
+                            # TODO should the object be included here?
+                            pass
 
         # Responses with 1xx do not make sense. And the HttpRequest class of Django
         # has no ability to check for the protocol version. Which is required, as
@@ -393,8 +392,9 @@ class Resource(object):
             return HttpResponseServerError()
 
         # The following response codes do not require any content (however, most of them should contain information). Thus,
-        # we clear the content and forward the response. In case the user wants to return content he should take of
+        # we clear the content and forward the response. In case the user wants to return content he should take care of
         # that manually.
+        # TODO why?
         CODES_WITHOUT_CONTENT = [202, 203, 204, 205, 300, 301, 302, 303, 307, 406, 407, 408, 409, 410, 411, 412, 413, 414, 416, 417, 501, 502, 503, 504, 505]
         if response.status_code in CODES_WITHOUT_CONTENT:
             response.content = ''
@@ -413,10 +413,8 @@ class Resource(object):
         elif response.status_code == 405 and not response.get('Allow', None):
             return HttpResponseServerError()
         elif response.status_code == 200:
-            # TODO: Check on a if the content-type matches the requested one on a code 200.
+            # TODO Check on a if the content-type matches the requested one on a code 200.
             return response
-        else:
-            response.content = ''
 
         return response
 
@@ -444,10 +442,29 @@ class Resource(object):
             data = request.body
         else:
             data = request.raw_post_data
+        print Loader
         loader = Loader()
-        loader.load(data, map_fields=self._meta.map_fields, model=self._meta.model)
-        return loader.get_querydict()
-        
+        loader.load(data,
+                map_fields=self._meta.map_fields,
+                model=self._meta.model,
+                fields=self.optionlist_for_type(request.rest_info.request_method, self._meta.fields),
+                exclude=self.optionlist_for_type(request.rest_info.request_method, self._meta.exclude)
+        )
+        if request.rest_info.request_type == 'list':
+            return loader.get_querydict(force_batch=self._meta.allow_batch_creation)
+        else:
+            return loader.get_querydict()
+
+    # TODO this is a helper. should it be here?
+    def optionlist_for_type(self, method, optlist):
+        print "%s: %s" % (method, optlist)
+        x = lambda e, t: isinstance(e, dict) and not t in e.values()[0]
+        obj_or_key = lambda e: isinstance(e, dict) and e.keys()[0] or e
+        if isinstance(optlist, list):
+            return [obj_or_key(i) for i in optlist if not x(i, method)]
+        else:
+            return optlist
+
     def _check_method(self, method, req_type):
         """
         Checks if the request method is allowed.
@@ -465,10 +482,14 @@ class Resource(object):
         elif 'id_list' in kwargs:
             req_type = 'multiple'
         else:
+            req_type = 'list'
             # Batch update/delete is currently not supported, only
             # GET is allowed.
-            if method == 'GET':
-                req_type = 'multiple'
+            #if method == 'GET':
+            #    req_type = 'multiple'
+            #elif method == 'POST':
+            #    # A POST without an id creates a new object.
+            #    req_type = 'object'
         return req_type
 
     def _handle_put_request(self, request):
@@ -501,36 +522,67 @@ class Resource(object):
         request.PUT = request.POST
 
     def _rest_to_http_response(self, request, restresponse):
-        # TODO: What happens if the is no data attribute?
-        data = restresponse.data
-        print type(data)
-        if self._meta.model:
-            if isinstance(data, QuerySet):
-                if data.model != self._meta.model:
-                    # TODO appropriate http error response
-                    return HttpResponseNotFound()
-            elif isinstance(data, list):
-                if not isinstance(all(data), self._meta.model):
-                    # TODO appropriate http error response
-                    return HttpResponseNotFound()
-            elif not isinstance(data, self._meta.model):
-                print data
-                print self._meta.model
-                # TODO appropriate http error response
-                return HttpResponseNotFound()
+        format = request.rest_info.format
+        if not format:
+            if settings.DEBUG and self.display_errors:
+                raise ConfigurationError('No format for the response specified')
+            else:
+                return HttpResponseServerError()
 
-        # TODO: form errors
+        if restresponse.form and restresponse.form.errors:
+            # TODO add a method to serializers to handle simple dicts/lists.
+            #s = serializers.serialize('rest%s' % (format), restresponse.form.errors, api_name=self._meta.api_name)
+            response = HttpResponse(status=400)
+            from django.utils import simplejson
+            response.content = simplejson.dumps(restresponse.form.errors)
+            response.content_type = get_mime_for_format(request.rest_info.format)
+            return response
 
-        frmt = self.get_format(request)
-        # TODO : What if frmt does not exist
-        # TODO : What if the serializer does not exist?
-        # TODO : inline is missing
-        print self._meta.fields
-        print self._meta.exclude
-        print self._meta.reverse_fields
-        print self._meta.inline
-        print self._meta.map_fields
-        print frmt
-        s = serializers.serialize('rest%s' % (frmt), data, related_as_ids=self._meta.related_as_ids, api_name=self._meta.api_name, fields=self._meta.fields, exclude=self._meta.exclude, reverse_fields=self._meta.reverse_fields, inline=self._meta.inline, map_fields=self._meta.map_fields, extra=self._meta.extra_fields)
-        # TODO: determine the content-type from frmt!
-        return HttpResponse(s, content_type='application/json; charset=utf-8')
+        if restresponse.content:
+            data = restresponse.content
+            if self._meta.model:
+                if isinstance(data, QuerySet):
+                    if data.model != self._meta.model:
+                        if settings.DEBUG and self.display_errors:
+                            raise ConfigurationError('The returned model %s is not compatible with the resources\' model %s' % (data.model, self._meta.model))
+                        else:
+                            return HttpResponseServerError()
+                elif isinstance(data, list):
+                    if not all(map(lambda x: isinstance(x, self._meta.model), data)):
+                        if settings.DEBUG and self.display_errors:
+                            raise ConfigurationError('At least one model in the returned list is not compatible with the resources\' model %s' % (self._meta.model,))
+                        else:
+                            return HttpResponseServerError()
+                elif not isinstance(data, self._meta.model):
+                    if settings.DEBUG and self.display_errors:
+                        raise ConfigurationError('The returned object\'s model %s is not compatible with the resource model %s' % (type(data), self._meta.model))
+                    else:
+                        return HttpResponseServerError()
+
+            print data
+            print self._meta.fields
+            print self._meta.exclude
+            print self.optionlist_for_type(request.rest_info.request_method, self._meta.exclude)
+            print self._meta.reverse_fields
+            print self._meta.inline
+            print self._meta.map_fields
+            try:
+                s = serializers.serialize('rest%s' % (format), 
+                    data, 
+                    related_as_ids=self._meta.related_as_ids, 
+                    api_name=self._meta.api_name, 
+                    fields=self.optionlist_for_type(request.rest_info.request_method, self._meta.fields),
+                    exclude=self.optionlist_for_type(request.rest_info.request_method, self._meta.exclude),
+                    reverse_fields=self._meta.reverse_fields, 
+                    inline=self._meta.inline, 
+                    map_fields=self._meta.map_fields, 
+                    extra=self._meta.extra_fields
+                )
+            except serializers.base.SerializerDoesNotExist:
+                if settings.DEBUG and self.display_errors:
+                    raise UnsupportedFormat('Format %s is not supported. Check if you included the serializers in the settings file.' % (format,))
+                else:
+                    return HttpResponseUnsupportedMediaType()
+            return HttpResponse(s, content_type=get_mime_for_format(format))
+
+        return HttpResponse()
