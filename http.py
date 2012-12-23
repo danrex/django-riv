@@ -28,5 +28,8 @@ class HttpResponseNotAcceptable(HttpResponse):
 class HttpResponseConflict(HttpResponse):
     status_code = 409
 
+class HttpResponseUnsupportedMediaType(HttpResponse):
+    status_code = 415
+
 class HttpResponseNotImplemented(HttpResponse):
     status_code = 501
