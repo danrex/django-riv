@@ -29,13 +29,6 @@ class Serializer(base.Serializer):
         super(Serializer, self).start_object(obj)
         self._current['xml_verbose_name'] = smart_str(obj._meta.verbose_name)
 
-    #def handle_fk_field(self, obj, field):
-    #    super(Serializer, self).handle_fk_field(obj, field)
-    #    self.indent(2)
-    #    self.xml.startElement(field.name, {})
-    #    self.xml.characters(self._current[field.name])
-    #    self.xml.endElement(field.name)
-
     def handle_m2m_field(self, obj, field):
         super(Serializer, self).handle_m2m_field(obj, field)
         self._current[field.name].insert(0, smart_str(getattr(obj, field.name).model._meta.verbose_name))
@@ -51,7 +44,7 @@ class Serializer(base.Serializer):
         super(Serializer, self).end_serialization()
         self.xml = SimplerXMLGenerator(self.stream, self.encoding)
         self.xml.startDocument()
-        self.xml.startElement(self.ROOT_ELEMENT, {'version': '1.0'})
+        self.xml.startElement(self.ROOT_ELEMENT, {})
 
         if not isinstance(self.objects, list):
             self.objects = [self.objects,]
@@ -70,20 +63,24 @@ class Serializer(base.Serializer):
     def handle_dict(self, d):
         for k,v in d.items():
             self.indent(2)
-            self.xml.startElement(k, {})
-            if isinstance(v, list):
-                self.handle_list(v)
-            elif isinstance(v, dict):
-                self.handle_dict(v)
+            if self.render_only and isinstance(v, list):
+                self.handle_list(v, name=k)
             else:
-                self.xml.characters(smart_str(v))
-            self.xml.endElement(k)
+                self.xml.startElement(k, {})
+                if isinstance(v, list):
+                    self.handle_list(v)
+                elif isinstance(v, dict):
+                    self.handle_dict(v)
+                else:
+                    self.xml.characters(smart_str(v))
+                self.xml.endElement(k)
 
-    def handle_list(self, l):
-        if l:
+    def handle_list(self, l, name=None):
+        if l and not name:
             name = l.pop(0)
         else:
-            name = 'object'
+            if not name:
+                name = 'object'
         for object in l:
             self.xml.startElement(name, {})
             if isinstance(object, dict):
@@ -97,9 +94,8 @@ class Serializer(base.Serializer):
             return self.stream.getvalue()
 
     def _get_xml_name(self, obj):
-        if isinstance(obj, dict):
-            if obj.has_key('xml_verbose_name'):
-                return obj.pop('xml_verbose_name')
+        if isinstance(obj, dict) and obj.has_key('xml_verbose_name'):
+            return obj.pop('xml_verbose_name')
         return 'object'
 
 class Loader(base.Loader):

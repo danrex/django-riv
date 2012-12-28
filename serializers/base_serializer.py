@@ -1,3 +1,5 @@
+from StringIO import StringIO
+
 from django.db.models import Model
 from django.core.serializers import python, json
 from django.core.urlresolvers import reverse, NoReverseMatch
@@ -32,6 +34,7 @@ class Serializer(python.Serializer):
         self.inline = options.pop('inline', [])
         self.map_fields = options.pop('map_fields', {}) # "map" is reserved!
         self.reverse_fields = options.pop('reverse_fields', [])
+        self.render_only = options.pop('render_only', False)
 
         # If inline is True, each ForeignKey and ManyToMany field is 
         # serialized using a new Serializer. 
@@ -51,7 +54,22 @@ class Serializer(python.Serializer):
         else:
             self.single_object = False
             serializee = queryset
-        return super(Serializer, self).serialize(serializee, **options)
+        if self.render_only:
+            return self.fake_serialize(serializee, **options)
+        else:
+            return super(Serializer, self).serialize(serializee, **options)
+
+    def fake_serialize(self, queryset, **options):
+        self.options = options
+        self.stream = options.pop("stream", StringIO())
+        self.selected_fields = options.pop("fields", None)
+
+        self.start_serialization()
+        # this is a dirty hack
+        self.objects = [{'fields': queryset}]
+        print self.objects
+        self.end_serialization()
+        return self.getvalue()
 
     def start_serialization(self):
         super(Serializer, self).start_serialization()

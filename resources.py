@@ -259,14 +259,7 @@ class Resource(object):
             else:
                 return HttpResponseNotImplemented()
         except Exception, e:
-            # TODO rest_info has errors should not be used anymore.
-            rest_info._has_errors = True
             handling_exception = e
-            # TODO: Should that be here?!?
-            if settings.DEBUG and self.display_errors:
-                raise
-            else:
-                pass
 
         self.post_view(
             request=request, 
@@ -333,7 +326,7 @@ class Resource(object):
         if isinstance(response, RestResponse):
             response = self._rest_to_http_response(request, response)
 
-        # TODO: decide for a variable name
+        # TODO decide for a variable name
         #if self._sloppy_response:
         if False:
             if response:
@@ -432,8 +425,6 @@ class Resource(object):
                 raise UnsupportedFormat('Format %s is not supported. Check if you included the serializers in the settings file.' % (request.META.get('CONTENT_TYPE', 'application/json')))
             else:
                 return HttpResponseUnsupportedMediaType()
-        print request.raw_post_data
-        #s = serializers.serialize('rest%s' % (frmt), data, related_as_ids=self._meta.related_as_ids, api_name=self._meta.api_name, fields=self._meta.fields, exclude=self._meta.exclude, reverse_fields=self._meta.reverse_fields, inline=self._meta.inline, map_fields=self._meta.map_fields, extra=self._meta.extra_fields)
         try:
             Loader = serializers.get_serializer('rest%s' % format)().get_loader()
         except serializers.base.SerializerDoesNotExist:
@@ -445,13 +436,12 @@ class Resource(object):
             data = request.body
         else:
             data = request.raw_post_data
-        print Loader
         loader = Loader()
         loader.load(data,
                 map_fields=self._meta.map_fields,
                 model=self._meta.model,
-                fields=self.optionlist_for_type(request.rest_info.request_method, self._meta.fields),
-                exclude=self.optionlist_for_type(request.rest_info.request_method, self._meta.exclude)
+                fields=self._optionlist_for_type(request.rest_info.request_method, self._meta.fields),
+                exclude=self._optionlist_for_type(request.rest_info.request_method, self._meta.exclude)
         )
         if request.rest_info.request_type == 'list':
             return loader.get_querydict(force_batch=self._meta.allow_batch_creation)
@@ -459,8 +449,7 @@ class Resource(object):
             return loader.get_querydict()
 
     # TODO this is a helper. should it be here?
-    def optionlist_for_type(self, method, optlist):
-        print "%s: %s" % (method, optlist)
+    def _optionlist_for_type(self, method, optlist):
         x = lambda e, t: isinstance(e, dict) and not t in e.values()[0]
         obj_or_key = lambda e: isinstance(e, dict) and e.keys()[0] or e
         if isinstance(optlist, list):
@@ -532,17 +521,16 @@ class Resource(object):
             else:
                 return HttpResponseServerError()
 
+        response = HttpResponse(content_type=get_mime_for_format(format))
+
         if restresponse.form and restresponse.form.errors:
-            # TODO add a method to serializers to handle simple dicts/lists.
-            #s = serializers.serialize('rest%s' % (format), restresponse.form.errors, api_name=self._meta.api_name)
-            response = HttpResponse(status=400)
-            from django.utils import simplejson
-            response.content = simplejson.dumps(restresponse.form.errors)
-            response.content_type = get_mime_for_format(request.rest_info.format)
-            return response
+            data = {'error': restresponse.form.errors}
+            response.status_code = 400
+            render_only = True
 
         if restresponse.content:
             data = restresponse.content
+            render_only = not (self._meta.model or False)
             if self._meta.model:
                 if isinstance(data, QuerySet):
                     if data.model != self._meta.model:
@@ -562,30 +550,30 @@ class Resource(object):
                     else:
                         return HttpResponseServerError()
 
-            print data
-            print self._meta.fields
-            print self._meta.exclude
-            print self.optionlist_for_type(request.rest_info.request_method, self._meta.exclude)
-            print self._meta.reverse_fields
-            print self._meta.inline
-            print self._meta.map_fields
-            try:
-                s = serializers.serialize('rest%s' % (format), 
-                    data, 
-                    related_as_ids=self._meta.related_as_ids, 
-                    api_name=self._meta.api_name, 
-                    fields=self.optionlist_for_type(request.rest_info.request_method, self._meta.fields),
-                    exclude=self.optionlist_for_type(request.rest_info.request_method, self._meta.exclude),
-                    reverse_fields=self._meta.reverse_fields, 
-                    inline=self._meta.inline, 
-                    map_fields=self._meta.map_fields, 
-                    extra=self._meta.extra_fields
-                )
-            except serializers.base.SerializerDoesNotExist:
-                if settings.DEBUG and self.display_errors:
-                    raise UnsupportedFormat('Format %s is not supported. Check if you included the serializers in the settings file.' % (format,))
-                else:
-                    return HttpResponseUnsupportedMediaType()
-            return HttpResponse(s, content_type=get_mime_for_format(format))
-
-        return HttpResponse()
+        print data
+        print self._meta.fields
+        print self._meta.exclude
+        print self._optionlist_for_type(request.rest_info.request_method, self._meta.exclude)
+        print self._meta.reverse_fields
+        print self._meta.inline
+        print self._meta.map_fields
+        try:
+            s = serializers.serialize('rest%s' % (format), 
+                data, 
+                related_as_ids=self._meta.related_as_ids, 
+                api_name=self._meta.api_name, 
+                fields=self._optionlist_for_type(request.rest_info.request_method, self._meta.fields),
+                exclude=self._optionlist_for_type(request.rest_info.request_method, self._meta.exclude),
+                reverse_fields=self._meta.reverse_fields, 
+                inline=self._meta.inline, 
+                map_fields=self._meta.map_fields, 
+                extra=self._meta.extra_fields,
+                render_only=render_only
+            )
+        except serializers.base.SerializerDoesNotExist:
+            if settings.DEBUG and self.display_errors:
+                raise UnsupportedFormat('Format %s is not supported. Check if you included the serializers in the settings file.' % (format,))
+            else:
+                return HttpResponseUnsupportedMediaType()
+        response.content = s
+        return response
