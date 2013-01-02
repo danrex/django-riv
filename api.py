@@ -36,13 +36,19 @@ class Api(object):
     def _get_urls(self):
         urlpatterns = patterns('')
         for model_or_name,resources in self._resource_list.items():
+            multiple_reverse_counter = 0
             if len(resources) > 1:
                 for name,resource in resources.items():
+                    if resource._meta.reverse:
+                        if multiple_reverse_counter > 0:
+                            raise ConfigurationError("Multiple resources in api '%s' with 'reverse=True' for model %s found" % (self.name, resource._meta.model))
+                        else:
+                            multiple_reverse_counter += 1
                     # TODO add a counter here and throw an error if two resources have reverse set to True.
                     urlpatterns += resource.urls
             else:
+                # TODO should not use the internal method "_get_urls" but rather a property
                 urlpatterns += resources.values()[0]._get_urls(reverse=True)
-            #urlpatterns += resource.urls
         return urlpatterns
 
     urls = property(_get_urls)
