@@ -11,8 +11,14 @@ class Serializer(base.Serializer):
 	def get_loader(self):
 		return Loader
 
+	def serialize(self, queryset, **options):
+		self.finalize = options.pop('finalize', True)
+		return super(Serializer, self).serialize(queryset, **options)
+
 	def end_serialization(self):
 		super(Serializer, self).end_serialization()
+		if not self.finalize:
+			return
 		simplejson.dump(self.objects, self.stream, cls=DjangoJSONEncoder, **self.options)
 
 	def getvalue(self):

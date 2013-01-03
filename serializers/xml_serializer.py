@@ -17,6 +17,7 @@ class Serializer(base.Serializer):
         return Loader
 
     def serialize(self, queryset, **options):
+        self.finalize = options.pop('finalize', True)
         self.indent_level = options.pop('indent', None)
         self.encoding = options.pop('encoding', settings.DEFAULT_CHARSET)
         return super(Serializer, self).serialize(queryset, **options)
@@ -42,6 +43,8 @@ class Serializer(base.Serializer):
 
     def end_serialization(self):
         super(Serializer, self).end_serialization()
+        if not self.finalize:
+            return
         self.xml = SimplerXMLGenerator(self.stream, self.encoding)
         self.xml.startDocument()
         self.xml.startElement(self.ROOT_ELEMENT, {})
@@ -61,6 +64,9 @@ class Serializer(base.Serializer):
         self.xml.endDocument()
 
     def handle_dict(self, d):
+        # Make sure this key is removed.
+        if d.has_key('xml_verbose_name'):
+            del d['xml_verbose_name']
         for k,v in d.items():
             self.indent(2)
             if self.render_only and isinstance(v, list):
@@ -77,7 +83,7 @@ class Serializer(base.Serializer):
 
     def handle_list(self, l, name=None):
         if l and not name:
-            name = l.pop(0)
+            name = smart_str(l.pop(0))
         else:
             if not name:
                 name = 'object'

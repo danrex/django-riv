@@ -144,15 +144,17 @@ class Serializer(python.Serializer):
 
     def handle_fk_field(self, obj, field):
         if self.inline and field.name in self.inline:
-            tmpserializer = Serializer()
+            tmpserializer = self.__class__()
             fields, exclude, maps, inline = self._get_serialize_options_for_subfield(field.name)
-            self._current[field.name] = tmpserializer.serialize(
+            tmpserializer.serialize(
                 getattr(obj, field.name),
                 inline=inline,
                 fields=fields,
                 exclude=exclude,
                 map_fields=maps,
+                finalize=False
             )
+            self._current[field.name] = tmpserializer.objects
         else:
             super(Serializer, self).handle_fk_field(obj, field)
             if not self.related_as_ids:
@@ -169,15 +171,19 @@ class Serializer(python.Serializer):
 
     def handle_m2m_field(self, obj, field):
         if self.inline and field.name in self.inline:
-            tmpserializer = Serializer()
+            tmpserializer = self.__class__()
             fields, exclude, maps, inline = self._get_serialize_options_for_subfield(field.name)
-            self._current[field.name] = [tmpserializer.serialize(
-                related,
-                inline=inline,
-                fields=fields,
-                exclude=exclude,
-                map_fields=maps,
-            ) for related in getattr(obj, field.name).iterator()]
+            self._current[field.name] = []
+            for related in getattr(obj, field.name).iterator():
+                tmpserializer.serialize(
+                    related,
+                    inline=inline,
+                    fields=fields,
+                    exclude=exclude,
+                    map_fields=maps,
+                    finalize=False
+                )
+                self._current[field.name].append(tmpserializer.objects)
         else:
             super(Serializer, self).handle_m2m_field(obj, field)
             if not self.related_as_ids:
