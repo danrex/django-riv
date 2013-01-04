@@ -1,3 +1,5 @@
+from django.core.urlresolvers import reverse, NoReverseMatch
+
 def traverse_dict(d, keys, return_parent=False):
     if isinstance(d, dict):
         if return_parent and len(keys) == 1:
@@ -23,3 +25,12 @@ def create_tree_with_val(d, keys, val):
     if not d.has_key(keys[0]):
         d[keys[0]] = {}
     create_tree_with_val(d[keys[0]], keys[1:], val)
+
+def get_url_for_object(api_name, obj, extra_id=None):
+	try:
+		if extra_id:
+			return reverse('object-%s-%s' % (api_name, obj._meta), kwargs={'id': extra_id})
+		else:
+			return reverse('object-%s-%s' % (api_name, obj._meta), kwargs={'id': obj.id})
+	except NoReverseMatch:
+		return obj._get_pk_val()

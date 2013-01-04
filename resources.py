@@ -14,6 +14,7 @@ from riv.http import HttpResponseNotAllowed, HttpResponseNoContent, HttpResponse
 from riv.info import RestInformation
 from riv.wrappers import BaseWrapper
 from riv.mime import formats, get_available_format, get_mime_for_format
+from riv.utils import get_url_for_object
 
 # A short documentation about the different Method definitions:
 # (http://www.w3.org/Protocols/rfc2616/rfc2616-sec9.html)
@@ -547,6 +548,16 @@ class Resource(object):
                         raise ConfigurationError('The returned object\'s model %s is not compatible with the resource model %s' % (type(data), self._meta.model))
                     else:
                         return HttpResponseServerError()
+
+                # Add a location header
+                if request.method == 'POST':
+                    try:
+                        response['Location'] = get_url_for_object(self._meta.api_name, data[0])
+                    except TypeError:
+                        response['Location'] = get_url_for_object(self._meta.api_name, data)
+                    if not self._meta.render_object_after_post:
+                        response.content = ''
+                        return response
 
         print data
         print self._meta.fields
