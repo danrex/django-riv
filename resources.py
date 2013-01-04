@@ -584,5 +584,11 @@ class Resource(object):
                 raise UnsupportedFormat('Format %s is not supported. Check if you included the serializers in the settings file.' % (format,))
             else:
                 return HttpResponseUnsupportedMediaType()
+        except serializers.base.SerializationError:
+            if settings.DEBUG and self.display_errors:
+                raise
+            else:
+                return HttpResponseServerError()
         response.content = s
         return response
+

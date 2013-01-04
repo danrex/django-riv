@@ -2,11 +2,12 @@ from StringIO import StringIO
 
 from django.db.models import Model
 from django.core.serializers import python, json
+from django.core.serializers.base import SerializationError
 from django.core.urlresolvers import reverse, NoReverseMatch
 from django.utils.encoding import smart_unicode, is_protected_type
 from django.utils import simplejson
 
-from riv.utils import traverse_dict, create_tree_with_val
+from riv.utils import traverse_dict, create_tree_with_val, get_url_for_object
 
 SEPARATOR = '__'
 
@@ -112,18 +113,33 @@ class Serializer(python.Serializer):
                         self._current[field] = field_obj
         if self.map_fields:
             for key,value in self.map_fields.iteritems():
+                print self._current
+                print key
+                print value
                 if self._current.has_key(key):
                     self._current[value] = self._current[key]
                     del self._current[key]
                 elif SEPARATOR in key and self._current.has_key(key.split(SEPARATOR)[0]):
-                    if SEPARATOR in value:
-                        # Crossmapping between different ForeignKey objects
-                        # is currently not supported.
-                        continue
                     key_list = key.split(SEPARATOR)
                     try:
                         # Walk down the dictionaries and return the value.
-                        self._current[value] = traverse_dict(self._current, key_list)
+                        # This has to be done before the "value check" below to ensure that
+                        # a KeyError is raised in case the ForeignKey has not been serialized
+                        # (through the 'inline' option)
+                        tmp = traverse_dict(self._current, key_list)
+
+                        if SEPARATOR in value:
+                            value_list = value.split(SEPARATOR)
+                            if key_list[0] == value_list[0]:
+                                # If the value is a ForeignKey as well (contains the SEPARATOR)
+                                # we don't handle it here.
+                                continue
+                            else:
+                                # Crossmapping between different ForeignKey objects
+                                # is currently not supported.
+                                raise SerializationError("Crossmapping between different ForeignKey fields is currently not supported.")
+
+                        self._current[value] = tmp
                         # Then, walk down the dictionaries and remove the key.
                         print "-------"
                         print self._current
@@ -131,8 +147,9 @@ class Serializer(python.Serializer):
                         print traverse_dict(self._current, key_list, return_parent=True)
                         del traverse_dict(self._current, key_list, return_parent=True)[key_list[-1]]
                     except KeyError:
-                        # TODO also fail silently if Debug==True?
-                        pass
+                        raise SerializationError("Invalid key '%s' in map_fields. Did you add '%s' to the inline fields?" % (key, key_list[0]))
+                else:
+                    raise SerializationError("Invalid key '%s' in map_fields." % (key,))
         super(Serializer, self).end_object(obj)
 
     def end_serialization(self):
@@ -158,15 +175,11 @@ class Serializer(python.Serializer):
         else:
             super(Serializer, self).handle_fk_field(obj, field)
             if not self.related_as_ids:
-                try:
-                    related = getattr(obj, field.name)
-                    if related:
-                        val = reverse('object-%s-%s' % (self.api_name, related._meta), kwargs={'id': self._current[field.name]})
-                        self._current[field.name] = val
-                except NoReverseMatch:
-                    # this indicates that no resource has been registered for this model. So 
-                    # we just return the primary key of the object.
-                    pass
+                related = getattr(obj, field.name)
+                if related:
+                    #val = reverse('object-%s-%s' % (self.api_name, related._meta), kwargs={'id': self._current[field.name]})
+                    val = get_url_for_object(self.api_name, related, self._current[field.name])
+                    self._current[field.name] = val
 
 
     def handle_m2m_field(self, obj, field):
@@ -221,23 +234,26 @@ class Serializer(python.Serializer):
                         map_fields=maps,
                     ) for related in getattr(obj, fieldname).iterator()]
             else:
-                rev = lambda field: reverse('object-%s-%s' % (self.api_name, field._meta), kwargs={'id': field._get_pk_val()})
+                #rev = lambda field: reverse('object-%s-%s' % (self.api_name, field._meta), kwargs={'id': field._get_pk_val()})
+                rev = lambda field: get_url_for_object(self.api_name, field)
                 if isinstance(getattr(obj, fieldname), Model):
                     if self.related_as_ids:
                         self._current[fieldname] = getattr(obj, fieldname)._get_pk_val()
                     else:
-                        try:
-                            self._current[fieldname] = rev(getattr(obj, fieldname))
-                        except NoReverseMatch:
-                            self._current[fieldname] = getattr(obj, fieldname)._get_pk_val()
+                        #try:
+                        #    self._current[fieldname] = rev(getattr(obj, fieldname))
+                        #except NoReverseMatch:
+                        #    self._current[fieldname] = getattr(obj, fieldname)._get_pk_val()
+                        self._current[fieldname] = rev(getattr(obj, fieldname))
                 else:
                     if self.related_as_ids:
                         self._current[fieldname] = [related._get_pk_val() for related in getattr(obj, fieldname).iterator()]
                     else:
-                        try:
-                            self._current[fieldname] = [rev(related) for related in getattr(obj, fieldname).iterator()]
-                        except NoReverseMatch:
-                            self._current[fieldname] = [related._get_pk_val() for related in getattr(obj, fieldname).iterator()]
+                        #try:
+                        #    self._current[fieldname] = [rev(related) for related in getattr(obj, fieldname).iterator()]
+                        #except NoReverseMatch:
+                        #    self._current[fieldname] = [related._get_pk_val() for related in getattr(obj, fieldname).iterator()]
+                        self._current[fieldname] = [rev(related) for related in getattr(obj, fieldname).iterator()]
 
     def _get_serialize_options_for_subfield(self, name):
             fields, exclude, maps, inline = None, None, {}, None
