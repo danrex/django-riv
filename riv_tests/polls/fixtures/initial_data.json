@@ -1,27 +1,92 @@
 [
-	{
-		"fields": {
-			"username": "johndoe",
-			"email": "john@doe.com",
-			"password": "whatever"
-		},
-		"model": "auth.user",
-		"pk": 1
-	},
-	{
-		"fields": {
-			"question": "What is it about?",
-			"pub_date": "2011-10-20 18:00:00"
-		},
-		"model": "polls.poll",
-		"pk": 1
-	},
-	{
-		"fields": {
-			"question": "Is it about that?",
-			"pub_date": "2011-10-20 18:05:00"
-		},
-		"model": "polls.poll",
-		"pk": 2
-	}
+  {
+    "fields": {
+      "username": "johndoe",
+      "email": "john@doe.com"
+    },
+    "model": "auth.user",
+    "pk": 1
+  },
+  {
+    "fields": {
+      "question": "What is it about?",
+      "pub_date": "2011-10-20 18:00:00",
+      "tags": [1, 2, 3]
+    },
+    "model": "polls.poll",
+    "pk": 1
+  },
+  {
+    "fields": {
+      "question": "Is it about that?",
+      "pub_date": "2011-10-20 18:05:00",
+      "tags": [1]
+    },
+    "model": "polls.poll",
+    "pk": 2
+  },
+  {
+    "fields": {
+      "poll": 1,
+      "choice": "Red",
+      "votes": 1
+    },
+    "model": "polls.choice",
+    "pk": 1
+  },
+  {
+    "fields": {
+      "poll": 1,
+      "choice": "Green",
+      "votes": 2
+    },
+    "model": "polls.choice",
+    "pk": 2
+  },
+  {
+    "fields": {
+      "poll": 1,
+      "choice": "Blue",
+      "votes": 3
+    },
+    "model": "polls.choice",
+    "pk": 3
+  },
+  {
+    "fields": {
+      "poll": 2,
+      "choice": "Small",
+      "votes": 4
+    },
+    "model": "polls.choice",
+    "pk": 4
+  },
+  {
+    "fields": {
+      "name": "Political"
+    },
+    "model": "polls.tag",
+    "pk": 1
+  },
+  {
+    "fields": {
+      "name": "Fun"
+    },
+    "model": "polls.tag",
+    "pk": 2
+  },
+  {
+    "fields": {
+      "name": "Music"
+    },
+    "model": "polls.tag",
+    "pk": 3
+  },
+  {
+    "fields": {
+      "name": "Environment"
+    },
+    "model": "polls.tag",
+    "pk": 4
+  }
 ]

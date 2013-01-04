@@ -2,9 +2,13 @@ import datetime
 from django.contrib.auth.models import User
 from django.db import models
 
+class Tag(models.Model):
+	name = models.CharField(max_length=100)
+
 class Poll(models.Model):
 	question = models.CharField(max_length=200)
 	pub_date = models.DateTimeField('date published')
+	tags = models.ManyToManyField(Tag)
 
 	def was_published_today(self):
 		return self.pub_date.date() == datetime.date.today()

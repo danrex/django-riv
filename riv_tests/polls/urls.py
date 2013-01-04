@@ -6,13 +6,14 @@ import views
 # admin.autodiscover()
 
 urlpatterns = patterns('polls.views',
-    (r'^$', 'poll_index'),
-    (r'^(?P<id>\d+)/$', 'poll_detail'),
-    (r'^(?P<id>\d+)/update/$', 'poll_update'),
-    (r'^(?P<id>\d+)/delete/$', 'poll_delete'),
-    (r'^(?P<id>\d+)/results/$', 'results'),
-    (r'^(?P<id>\d+)/vote/$', 'vote'),
-    (r'^add/$', 'add'),
+    url(r'^$', 'poll_index'),
+    url(r'^vote/$', 'vote'),
+    url(r'^(?P<id>\d+)/$', 'poll_detail'),
+    url(r'^create/$', 'poll_create_or_update', name='poll_create'),
+    url(r'^(?P<id>\d+)/update/$', 'poll_create_or_update', name='poll_update'),
+    url(r'^(?P<id>\d+)/delete/$', 'poll_delete'),
+    url(r'^(?P<id>\d+)/results/$', 'results'),
+    url(r'^(?P<id>\d+)/vote/$', 'vote'),
     # Examples:
     # url(r'^$', 'riv_tests.views.home', name='home'),
     # url(r'^riv_tests/', include('riv_tests.foo.urls')),

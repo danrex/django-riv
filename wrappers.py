@@ -179,19 +179,8 @@ class StandaloneWrapper(BaseWrapper):
         print formset.is_valid()
         print formset.errors
         if formset.is_valid():
-            # TODO
             objects = formset.save()
             return render_to_rest(objects)
-            #url_list = []
-            #for obj in objects:
-            #    print obj
-            #    url_list.append("%s%s" % (request.get_full_path(), obj.id))
-            #    print url_list
-            #format = request.rest_info.format
-            #if format == 'json':
-            #    return HttpResponse(simplejson.dumps(url_list))
-            #else:
-            #    return # TODO
         else:
             return render_form_error_to_rest(formset)
 
