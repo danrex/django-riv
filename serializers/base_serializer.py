@@ -282,6 +282,8 @@ class Loader:
     internal_use_only = False
 
     def load(self, queryset, **options):
+        self.selected_fields = options.pop('fields', None)
+        self.excluded_fields = options.pop('exclude', [])
         self.map_fields = options.pop('map_fields', None) # "map" is reserved!
         self.model = options.pop('model', None)
         # data will contain the raw material as it was given to the
@@ -295,6 +297,7 @@ class Loader:
         if not isinstance(self.objects, list):
             self.objects = [self.objects,]
 
+        self.remove_excluded_fields()
         self.reverse_map_fields()
         self.post_loading()
 
@@ -321,6 +324,14 @@ class Loader:
             d.update(dict([(unicode("form-"+str(counter)+"-"+str(k)), v) for (k,v) in data.items()]))
         d.update({'form-TOTAL_FORMS': unicode(counter+1), 'form-INITIAL_FORMS': u'0', 'form-MAX_NUM_FORMS': u''})
         self.objects = d
+
+    def remove_excluded_fields(self):
+        for object in self.objects:
+            for field in object.keys():
+                if self.selected_fields and not field in self.selected_fields:
+                    del object[field]
+                if field in self.excluded_fields:
+                    del object[field]
 
     def reverse_map_fields(self, objects=None):
         if not objects:
