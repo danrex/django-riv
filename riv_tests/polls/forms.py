@@ -21,5 +21,5 @@ class VoteForm(forms.Form):
         return cd
 
 class PollForm(forms.ModelForm):
-	class Meta:
-		model = Poll
+    class Meta:
+        model = Poll

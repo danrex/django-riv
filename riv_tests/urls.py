@@ -5,8 +5,8 @@ from polls.resources import StandaloneReadOnlyChoiceResource, ReadOnlyPollResour
         VoteResource, PutOnlyPollResource, PostOnlyPollResource, DeleteOnlyPollResource, \
         StandalonePutOnlyPollResource, StandalonePostOnlyPollResource, StandaloneDeleteOnlyPollResource, \
         BatchPostPollResource, BatchDeletePollResource, ReadWriteRenderPollResource, ResultResource, \
-		NoFallbackPollResource, RelatedAsIdsPollResource, FieldsPollResource, ExcludePollResource, \
-		InlinePollResource, ExtraPollResource, MapPollResource
+        NoFallbackPollResource, RelatedAsIdsPollResource, FieldsPollResource, ExcludePollResource, \
+        InlinePollResource, ExtraPollResource, MapPollResource
 
 from riv.api import Api
 
@@ -46,7 +46,7 @@ api.register(VoteResource(name='vote'))
 api.register(ResultResource(name='result'))
 
 urlpatterns = patterns('',
-	(r'^accounts/login/$', 'django.contrib.auth.views.login', {'template_name': 'login.html'}),
+    (r'^accounts/login/$', 'django.contrib.auth.views.login', {'template_name': 'login.html'}),
     (r'^polls/', include('polls.urls')),
     (r'^rest/', include(api.urls)),
 )

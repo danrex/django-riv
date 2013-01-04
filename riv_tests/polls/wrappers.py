@@ -18,8 +18,8 @@ class PollWrapper(BaseWrapper):
     create_multiple = create
 
 class PollBatchWrapper(PollWrapper):
-	create_multiple = call_view(views.poll_create_multiple)
-	#delete_multiple = call_view(views.delete_all)
+    create_multiple = call_view(views.poll_create_multiple)
+    #delete_multiple = call_view(views.delete_all)
 
 class VoteWrapper(BaseWrapper):
     create = call_view(views.vote)

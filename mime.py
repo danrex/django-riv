@@ -83,7 +83,7 @@ def detect_format(request):
 
 
 def get_serializers():
-	return [s for s in serializers.get_serializer_formats() if s.startswith('rest')]
+    return [s for s in serializers.get_serializer_formats() if s.startswith('rest')]
 
 
 def media_by_accept_header(request):
