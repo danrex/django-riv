@@ -58,13 +58,11 @@ ALLOWED_OPTIONS = (
     'allowed_methods',
     'allow_batch_creation',
     'allow_batch_deletion',
-    'include_object_in_response',
+    'render_object_after_post',
     'redirect_as_error',
     'redirect_as_error_code',
     'fallback_on_unsupported_format',
-    'resource_handling_required',
     'valid_response_required',
-    'readonly_queryset',
     'related_as_ids',
     'fields',
     'exclude',
@@ -89,7 +87,7 @@ class ResourceOptions(object):
         self.allow_batch_creation = False
         # Allow to delete all objects
         self.allow_batch_deletion = False
-        self.include_object_in_response = False
+        self.render_object_after_post = False
         # Treat it as an error using the code if a view returns with a redirect.
         self.redirect_as_error = False
         self.redirect_as_error_code = 401
@@ -99,8 +97,8 @@ class ResourceOptions(object):
         # inspect the headers of an incoming response to determine if it is acceptable.
         # -- Uses 'JSON' as fallback or sends a 406 error code if set to false.
         self.fallback_on_unsupported_format = True
-        self.resource_handling_required = False
-        self.readonly_queryset = False
+        # Still needed?
+        self.valid_response_required = False
         # Use just the id to include related objects instead of building a resource URI
         self.related_as_ids = False
         # Only serialize the specified fields.
@@ -371,15 +369,15 @@ class Resource(object):
                 return HttpResponse(status=self._meta.redirect_as_error_code)
 
         if request.rest_info.request_method == 'DELETE':
-                if response.status_code == 200 and not self._meta.include_object_in_response:
+                if response.status_code == 200 and not self._meta.render_object_after_post:
                     return HttpResponseNoContent()
         elif request.rest_info.request_method in ['POST', 'PUT']:
                 if response.status_code == 200:
+                    # This indicates a new object has been created
                     if request.rest_info.request_type == 'list':
                         response.status_code = 201
-                        if self._meta.include_object_in_response:
-                            # TODO should the object be included here?
-                            pass
+                    elif response.content == '':
+                        return HttpResponseNoContent()
 
         # Responses with 1xx do not make sense. And the HttpRequest class of Django
         # has no ability to check for the protocol version. Which is required, as
