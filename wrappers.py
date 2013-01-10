@@ -155,8 +155,7 @@ class StandaloneWrapper(BaseWrapper):
         # case to handle.
         return render_to_rest(q)
 
-    # TODO: What if the users wants to create 2 similar objects? Shouldn't we allow it?
-    def create(self, request, *args, **kwargs):
+    def create_multiple(self, request, *args, **kwargs):
         rest_info = request.rest_info
         if not rest_info:
             # This should never happen.
@@ -183,6 +182,32 @@ class StandaloneWrapper(BaseWrapper):
             return render_to_rest(objects)
         else:
             return render_form_error_to_rest(formset)
+
+    def create(self, request, *args, **kwargs):
+        rest_info = request.rest_info
+        if not rest_info:
+            # This should never happen.
+            return HttpResponseServerError()
+        if not getattr(rest_info, 'model') or not rest_info.model:
+            # This is a misconfiguration.
+            return HttpResponseServerError()
+        else:
+            model = rest_info.model
+
+        ModelForm = modelform_factory(model)
+
+        if not request.method == 'POST':
+            # This is actually a misconfiguration. If this method is
+            # called without POST someone played around with the
+            # BaseWrapper.handler_methods dictionary.
+            return HttpResponseNotAllowed(rest_info.allowed_methods)
+
+        form = ModelForm(request.POST, request.FILES)
+        if form.is_valid():
+            obj = form.save()
+            return render_to_rest(obj)
+        else:
+            return render_form_error_to_rest(form)
 
     def update(self, request, *args, **kwargs):
         rest_info = request.rest_info
@@ -319,5 +344,4 @@ class StandaloneWrapper(BaseWrapper):
         return HttpResponse()
 
     read_multiple = read
-    create_multiple = create
     delete_multiple = delete

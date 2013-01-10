@@ -6,7 +6,7 @@ from polls.resources import StandaloneReadOnlyChoiceResource, ReadOnlyPollResour
         StandalonePutOnlyPollResource, StandalonePostOnlyPollResource, StandaloneDeleteOnlyPollResource, \
         BatchPostPollResource, BatchDeletePollResource, ReadWriteRenderPollResource, ResultResource, \
         NoFallbackPollResource, RelatedAsIdsPollResource, FieldsPollResource, ExcludePollResource, \
-        InlinePollResource, ExtraPollResource, MapPollResource
+        InlinePollResource, ExtraPollResource, MapPollResource, StandaloneBatchPostPollResource
 
 from riv.api import Api
 
@@ -34,6 +34,7 @@ api.register(MapPollResource(name='mpr'))
 api.register(StandaloneReadOnlyPollResource(name='srpr'))
 api.register(StandalonePutOnlyPollResource(name='spuopr'))
 api.register(StandalonePostOnlyPollResource(name='spoopr'))
+api.register(StandaloneBatchPostPollResource(name='sbppr'))
 api.register(StandaloneDeleteOnlyPollResource(name='sdopr'))
 api.register(StandaloneReadWritePollResource(name='srwpr'))
 api.register(StandaloneReadWritePollResource2(name='srwpr2'))

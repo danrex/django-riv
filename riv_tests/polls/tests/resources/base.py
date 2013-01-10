@@ -49,8 +49,9 @@ class PutOnlyTestCase(BaseTestCase):
     def testPutPoll(self):
         put_data = '{"pub_date": "2011-10-20 19:00:00", "question": "is that allowed?", "tags": [1]}'
         response = self.client.put('/rest/puopr/1', put_data, content_type='application/json')
-        self.assertEqual(response.status_code, 204)
-        self.assertEqual(response.content, '')
+        # Update an existing object and return the content == 200
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.content, '{"pub_date": "2011-10-20T19:00:00", "question": "is that allowed?", "id": 1, "tags": ["/rest/str/1"]}')
         response = self.client.get('/rest/ropr/1')
         self.assertEqual(response.status_code, 200)
         self.assertEqual(response.content, '{"pub_date": "2011-10-20T19:00:00", "question": "is that allowed?", "id": 1, "tags": ["/rest/str/1"]}')
@@ -131,12 +132,12 @@ class ReadWriteTestCase(BaseTestCase):
         count = Poll.objects.all().count()
         put_data = '{"pub_date": "2011-10-20 19:00:00", "question": "is that allowed?", "tags": [1]}'
         response = self.client.put('/rest/rwpr/1', put_data, content_type='application/json')
-        print response.content
-        self.assertEqual(response.status_code, 204)
-        self.assertEqual(response.content, '')
+        # Update an existing object and return the content == 200
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.content, '{"pub_date": "2011-10-20T19:00:00", "question": "is that allowed?", "id": 1, "tags": ["/rest/str/1"]}')
         response = self.client.get('/rest/rwpr/')
         self.assertEqual(response.status_code, 200)
-        self.assertEqual(set(response.content), set('[{"pub_date": "2011-10-20T18:05:00", "question": "Is it about that?", "id": 2, "tags": ["/rest/str/1"]}, {"pub_date": "2011-10-20T19:00:00", "question": "is that allowed?", "id": 1, "tags": ["/rest/str/1"]}]'))
+        self.assertEqual(response.content, '[{"pub_date": "2011-10-20T19:00:00", "question": "is that allowed?", "id": 1, "tags": ["/rest/str/1"]}, {"pub_date": "2011-10-20T18:05:00", "question": "Is it about that?", "id": 2, "tags": ["/rest/str/1"]}]')
         # Number of objects remains unchanged
         self.assertEqual(count, Poll.objects.all().count())
 
@@ -158,7 +159,8 @@ class ReadWriteTestCase(BaseTestCase):
         count = Poll.objects.all().count()
         post_data = '{"pub_date": "2011-10-20 19:05:00", "question": "is this a new object?", "tags": [2]}'
         response = self.client.post('/rest/rwpr/', post_data, content_type='application/json')
-        self.assertEqual(response.status_code, 201)
+        self.assertEqual(response.status_code, 204)
+        self.assertTrue('Location' in response)
         self.assertEqual(response["Location"], 'http://' + self.host + "/rest/ropr/3")
         self.assertEqual(response.content, '')
         self.assertEqual(count, Poll.objects.all().count()-1)
@@ -168,6 +170,7 @@ class ReadWriteTestCase(BaseTestCase):
         post_data = '{"pub_date": "2011-10-20 19:05:00", "question": "is this a new object?", "tags": [2]}'
         response = self.client.post('/rest/rwrpr/', post_data, content_type='application/json')
         self.assertEqual(response.status_code, 201)
+        self.assertTrue('Location' in response)
         self.assertEqual(response["Location"], 'http://' + self.host + "/rest/ropr/3")
         self.assertEqual(response.content, '{"pub_date": "2011-10-20T19:05:00", "question": "is this a new object?", "id": 3, "tags": ["/rest/str/2"]}')
         self.assertEqual(count, Poll.objects.all().count()-1)
@@ -191,7 +194,8 @@ class BatchPostTestCase(BaseTestCase):
         count = Poll.objects.all().count()
         post_data = '{"pub_date": "2011-10-20 19:00:00", "question": "is that allowed?", "tags": [2]}'
         response = self.client.post('/rest/bppr/', post_data, content_type='application/json')
-        self.assertEqual(response.status_code, 201)
+        self.assertEqual(response.status_code, 204)
+        self.assertTrue('Location' in response)
         self.assertEqual(response["Location"], 'http://' + self.host + "/rest/ropr/3")
         self.assertEqual(response.content, "")
         self.assertEqual(count, Poll.objects.all().count()-1)
@@ -200,9 +204,9 @@ class BatchPostTestCase(BaseTestCase):
         count = Poll.objects.all().count()
         post_data = '[{"pub_date": "2011-10-20 19:00:00", "question": "is that allowed?", "tags": [2]}, {"pub_date": "2011-10-20 19:30:00", "question": "how is the weather?", "tags": [1]}]'
         response = self.client.post('/rest/bppr/', post_data, content_type='application/json')
-        self.assertEqual(response.status_code, 201)
+        self.assertEqual(response.status_code, 204)
         # The location header points to the first object
-        self.assertEqual(response.status_code, 201)
+        self.assertTrue('Location' in response)
         self.assertEqual(response["Location"], 'http://' + self.host + "/rest/ropr/3")
         self.assertEqual(response.content, "")
         self.assertEqual(count, Poll.objects.all().count()-2)

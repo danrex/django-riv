@@ -61,7 +61,7 @@ class PostOnlyPollResource(Resource):
     _wrapper = PollWrapper()
     class Meta:
         model = Poll
-        render_object_after_post = True
+        render_object_after_creation = True
         allowed_methods = ['POST',]
 
 class DeleteOnlyPollResource(Resource):
@@ -87,7 +87,7 @@ class ReadWriteRenderPollResource(Resource):
     _wrapper = PollWrapper()
     class Meta:
         model = Poll
-        render_object_after_post = True
+        render_object_after_creation = True
         allowed_methods = ['GET', 'POST', 'PUT', 'DELETE']
 
 class BatchPostPollResource(Resource):
@@ -156,13 +156,19 @@ class StandalonePutOnlyPollResource(Resource):
         model = Poll
         allowed_methods = ['PUT',]
 
+class StandaloneBatchPostPollResource(Resource):
+    _wrapper = StandaloneWrapper()
+    class Meta:
+        model = Poll
+        allow_batch_creation = True
+        render_object_after_creation = True
+        allowed_methods = ['POST',]
+
 class StandalonePostOnlyPollResource(Resource):
     _wrapper = StandaloneWrapper()
     class Meta:
         model = Poll
-        # This setting is mandatory if the StandaloneWrapper is used!
-        allow_batch_creation = True
-        render_object_after_post = True
+        render_object_after_creation = True
         allowed_methods = ['POST',]
 
 class StandaloneDeleteOnlyPollResource(Resource):
@@ -186,7 +192,7 @@ class StandaloneReadWritePollResource2(Resource):
         allow_batch_creation = True
         allowed_methods = ['GET', 'POST', 'PUT', 'DELETE']
         model = Poll
-        render_object_after_post = True
+        render_object_after_creation = True
 
 class StandaloneExcludeGetOnly(Resource):
     _wrapper = StandaloneWrapper()

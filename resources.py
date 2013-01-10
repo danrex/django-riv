@@ -59,7 +59,7 @@ ALLOWED_OPTIONS = (
     'allowed_methods',
     'allow_batch_creation',
     'allow_batch_deletion',
-    'render_object_after_post',
+    'render_object_after_creation',
     'redirect_as_error',
     'redirect_as_error_code',
     'fallback_on_unsupported_format',
@@ -88,7 +88,7 @@ class ResourceOptions(object):
         self.allow_batch_creation = False
         # Allow to delete all objects
         self.allow_batch_deletion = False
-        self.render_object_after_post = False
+        self.render_object_after_creation = False
         # Treat it as an error using the code if a view returns with a redirect.
         self.redirect_as_error = False
         self.redirect_as_error_code = 401
@@ -370,15 +370,17 @@ class Resource(object):
                 return HttpResponse(status=self._meta.redirect_as_error_code)
 
         if request.rest_info.request_method == 'DELETE':
-                if response.status_code == 200 and not self._meta.render_object_after_post:
+                if response.status_code == 200 and not self._meta.render_object_after_creation:
                     return HttpResponseNoContent()
         elif request.rest_info.request_method in ['POST', 'PUT']:
                 if response.status_code == 200:
-                    # This indicates a new object has been created
-                    if request.rest_info.request_type == 'list':
-                        response.status_code = 201
-                    elif response.content == '':
-                        return HttpResponseNoContent()
+                    if response.content == '':
+                        # We can not simply return "HttpResponseNoContent" here, because
+                        # the current response object has a "Location" header set!
+                        response.status_code = 204
+                    else:
+                        if request.rest_info.request_method == 'POST' or (request.rest_info.request_method == 'PUT' and request.rest_info.request_type == 'list'):
+                            response.status_code = 201
 
         # Responses with 1xx do not make sense. And the HttpRequest class of Django
         # has no ability to check for the protocol version. Which is required, as
@@ -478,9 +480,9 @@ class Resource(object):
             # GET is allowed.
             #if method == 'GET':
             #    req_type = 'multiple'
-            #elif method == 'POST':
-            #    # A POST without an id creates a new object.
-            #    req_type = 'object'
+            if method == 'POST' and not self._meta.allow_batch_creation:
+                # object or list is dependent on "allow_batch_creation"
+                req_type = 'object'
         return req_type
 
     def _handle_put_request(self, request):
@@ -550,12 +552,13 @@ class Resource(object):
                         return HttpResponseServerError()
 
                 # Add a location header
-                if request.method == 'POST':
+                print request.rest_info.request_method
+                if request.rest_info.request_method == 'POST' or (request.rest_info.request_method == 'PUT' and request.rest_info.request_type == 'list'):
                     try:
                         response['Location'] = get_url_for_object(self._meta.api_name, data[0])
                     except TypeError:
                         response['Location'] = get_url_for_object(self._meta.api_name, data)
-                    if not self._meta.render_object_after_post:
+                    if not self._meta.render_object_after_creation:
                         response.content = ''
                         return response
 

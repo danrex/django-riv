@@ -50,8 +50,7 @@ class StandalonePutOnlyTestCase(BaseTestCase):
     def testPutPoll(self):
         put_data = '{"pub_date": "2011-10-20 19:00:00", "question": "is that allowed?", "tags": [1]}'
         response = self.client.put('/rest/spuopr/1', put_data, content_type='application/json')
-        self.assertEqual(response.status_code, 204)
-        self.assertEqual(response.content, '')
+        self.assertEqual(response.status_code, 200)
 
     def testDeletePoll(self):
         response = self.client.delete('/rest/spuopr/1')
@@ -70,10 +69,10 @@ class StandalonePostOnlyTestCase(BaseTestCase):
         self.assertEqual(response.content, '')
 
     def testPostPoll(self):
-        put_data = '{"pub_date": "2011-10-20 19:00:00", "question": "is that allowed?", "tags": [2]}'
-        response = self.client.post('/rest/spoopr/', put_data, content_type='application/json')
+        post_data = '{"pub_date": "2011-10-20 19:00:00", "question": "is that allowed?", "tags": [2]}'
+        response = self.client.post('/rest/spoopr/', post_data, content_type='application/json')
         self.assertEqual(response.status_code, 201)
-        self.assertEqual(response.content, '[{"pub_date": "2011-10-20T19:00:00", "question": "is that allowed?", "id": 3, "tags": ["/rest/str/2"]}]')
+        self.assertEqual(response.content, '{"pub_date": "2011-10-20T19:00:00", "question": "is that allowed?", "id": 3, "tags": ["/rest/str/2"]}')
 
     def testPutPoll(self):
         put_data = '{"pub_date": "2011-10-20 19:00:00", "question": "is that allowed?", "tags": []}'
@@ -84,6 +83,28 @@ class StandalonePostOnlyTestCase(BaseTestCase):
     def testDeletePoll(self):
         response = self.client.delete('/rest/spoopr/1')
         self.assertEqual(response.status_code, 405)
+
+class StandaloneBatchPostTestCase(BaseTestCase):
+
+    def testPostPoll(self):
+        count = Poll.objects.all().count()
+        post_data = '{"pub_date": "2011-10-20 19:00:00", "question": "is that allowed?", "tags": [2]}'
+        response = self.client.post('/rest/sbppr/', post_data, content_type='application/json')
+        self.assertEqual(response.status_code, 201)
+        self.assertTrue('Location' in response)
+        self.assertEqual(response["Location"], 'http://' + self.host + "/rest/ropr/3")
+        self.assertEqual(response.content, '[{"pub_date": "2011-10-20T19:00:00", "question": "is that allowed?", "id": 3, "tags": ["/rest/str/2"]}]')
+        self.assertEqual(count, Poll.objects.all().count()-1)
+
+    def testBatchPostPoll(self):
+        count = Poll.objects.all().count()
+        post_data = '[{"pub_date": "2011-10-20 19:00:00", "question": "is that allowed?", "tags": [2]}, {"pub_date": "2011-10-20 19:30:00", "question": "how is the weather?", "tags": [1]}]'
+        response = self.client.post('/rest/sbppr/', post_data, content_type='application/json')
+        self.assertEqual(response.status_code, 201)
+        # The location header points to the first object
+        self.assertTrue('Location' in response)
+        self.assertEqual(response["Location"], 'http://' + self.host + "/rest/ropr/3")
+        self.assertEqual(count, Poll.objects.all().count()-2)
 
 class StandaloneDeleteOnlyTestCase(BaseTestCase):
 
@@ -142,8 +163,7 @@ class StandaloneReadWriteTestCase(BaseTestCase):
         """
         put_data = '{"pub_date": "2011-10-20 19:00:00", "question": "is that allowed?", "tags": [3]}'
         response = self.client.put('/rest/srwpr/1', put_data, content_type='application/json')
-        # object is not included in the response.
-        self.assertEqual(response.status_code, 204)
+        self.assertEqual(response.status_code, 200)
         response = self.client.get('/rest/srwpr/')
         self.assertEqual(response.status_code, 200)
         self.assertEqual(response.content, '[{"pub_date": "2011-10-20T19:00:00", "question": "is that allowed?", "id": 1, "tags": ["/rest/str/3"]}, {"pub_date": "2011-10-20T18:05:00", "question": "Is it about that?", "id": 2, "tags": ["/rest/str/1"]}]')
