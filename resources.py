@@ -63,7 +63,6 @@ ALLOWED_OPTIONS = (
     'redirect_as_error',
     'redirect_as_error_code',
     'fallback_on_unsupported_format',
-    'valid_response_required',
     'related_as_ids',
     'fields',
     'exclude',
@@ -98,8 +97,6 @@ class ResourceOptions(object):
         # inspect the headers of an incoming response to determine if it is acceptable.
         # -- Uses 'JSON' as fallback or sends a 406 error code if set to false.
         self.fallback_on_unsupported_format = True
-        # Still needed?
-        self.valid_response_required = False
         # Use just the id to include related objects instead of building a resource URI
         self.related_as_ids = False
         # Only serialize the specified fields.
@@ -184,9 +181,11 @@ class Resource(object):
             url(r'^%s/(?P<id>\d+)/?$' % (self._meta.name), self.handle_request, name='object-%s-%s' % (self._meta.api_name, name)),
             url(r'^%s/(?P<id_list>\d[;\d]+)/?$' % (self._meta.name), self.handle_request, name='multiple-%s-%s' % (self._meta.api_name, name))
         )
+    def _get_urls_reverse(self):
+        return self._get_urls(reverse=True)
+
     urls = property(_get_urls)
-    # TODO set reverse to True for this one.
-    urls_with_reverse = property(_get_urls)
+    urls_with_reverse = property(_get_urls_reverse)
 
     @csrf_exempt
     def handle_request(self, request, *args, **kwargs):
@@ -207,10 +206,6 @@ class Resource(object):
             else:
                 return HttpResponseNotAcceptable()
 
-
-        # TODO Whats happens e.g. if a PUT request does not point to any resource.
-        # Who handles this?
-
         if not self._check_method(req_meth, req_type):
             return HttpResponseNotAllowed(allow_headers=rest_info.allowed_methods)
 
@@ -230,8 +225,6 @@ class Resource(object):
             else:
                 return HttpResponseBadRequest()
 
-        #self._handle_put_request(request)
-
         try:
             handling_method = self._wrapper.get_handler_for('%s_%s' % (req_meth, req_type))
         except AttributeError:
@@ -239,11 +232,6 @@ class Resource(object):
                 raise
             else:
                 raise Http404()
-
-        # TODO delete -- start
-        import inspect
-        print "%s (%s): %s" % (inspect.getframeinfo(inspect.currentframe()).filename, inspect.getframeinfo(inspect.currentframe()).lineno, handling_method)
-        # TODO delete -- end
 
         self.pre_view(request)
 
@@ -325,14 +313,6 @@ class Resource(object):
         if isinstance(response, RestResponse):
             response = self._rest_to_http_response(request, response)
 
-        # TODO decide for a variable name
-        #if self._sloppy_response:
-        if False:
-            if response:
-                return response
-            else:
-                raise exception
-
         if (exception and isinstance(exception, Http404)) or \
         (response and response.status_code == 404):
             return HttpResponseNotFound()
@@ -346,19 +326,11 @@ class Resource(object):
         if response and response.status_code == 500:
             return HttpResponseServerError()
 
-        # A view should always return a valid HttpResponse. However, it is up
-        # to the user if he requires a valid response or not. Otherwise
-        # we just return an empty response.
         if response and not isinstance(response, HttpResponse):
             if settings.DEBUG and self.display_errors:
                 return response
             else:
                 return HttpResponseServerError()
-            #if self._meta.valid_response_required:
-            #   # TODO: error!
-            #   return HttpResponseNoContent()
-            #else:
-            #   return HttpResponseNoContent()
 
         if response.status_code >= 300 and response.status_code < 400:
             if self._meta.redirect_as_error:
@@ -388,16 +360,9 @@ class Resource(object):
         if response.status_code >= 100 and response.status_code < 200:
             return HttpResponseServerError()
 
-        # The following response codes do not require any content (however, most of them should contain information). Thus,
-        # we clear the content and forward the response. In case the user wants to return content he should take care of
-        # that manually.
-        # TODO why?
-        CODES_WITHOUT_CONTENT = [202, 203, 204, 205, 300, 301, 302, 303, 307, 406, 407, 408, 409, 410, 411, 412, 413, 414, 416, 417, 501, 502, 503, 504, 505]
-        if response.status_code in CODES_WITHOUT_CONTENT:
-            response.content = ''
-
         # The following codes require additional checking.
         if response.status_code == 206 and not (\
+        # the "None" in HttpResponse.get() is necessary for Django versions < 1.4
         (response.get('Content-Range', None) or response.get('Content-type', None) == 'multipart/byteranges') and \
         (response.get('Date', None)) and \
         (response.get('ETag', None) or response.get('Content-Location', None)) and \
@@ -406,11 +371,9 @@ class Resource(object):
         elif response.status_code == 401 and not response.get('WWW-Authenticate', None):
             # TODO: Check header
             return HttpResponseServerError()
-        # the "None" in HttpResponse.get() is necessary for Django versions < 1.4
         elif response.status_code == 405 and not response.get('Allow', None):
             return HttpResponseServerError()
         elif response.status_code == 200:
-            # TODO Check on a if the content-type matches the requested one on a code 200.
             return response
 
         return response
@@ -476,43 +439,10 @@ class Resource(object):
             req_type = 'multiple'
         else:
             req_type = 'list'
-            # Batch update/delete is currently not supported, only
-            # GET is allowed.
-            #if method == 'GET':
-            #    req_type = 'multiple'
             if method == 'POST' and not self._meta.allow_batch_creation:
                 # object or list is dependent on "allow_batch_creation"
                 req_type = 'object'
         return req_type
-
-    def _handle_put_request(self, request):
-        """
-        Django does not handle PUT requests and only populates "raw_post_data"
-        on POST requests. It uses the variables "_post" and "_files" to 
-        check weather the fields have been populated. Hence, we remove 
-        those variables and reload the input data.
-        """
-        # TODO: Check if this method is still needed! Compare with read_raw_data
-        if not request.method == 'PUT':
-            return
-
-        # Someone already tried to read the data but failed with an error.
-        if hasattr(request, '_post') and hasattr(request, '_post_parse_error'):
-            raise 
-
-        try:
-            del request._post
-            del request._files
-        except AttributeError:
-            pass
-
-        # Fake a POST otherwise _load_post_and_files does not load any data.
-        request.method = 'POST'
-        request._load_post_and_files()
-
-        # And back to PUT
-        request.method = 'PUT'
-        request.PUT = request.POST
 
     def _rest_to_http_response(self, request, restresponse):
         format = request.rest_info.format
@@ -552,7 +482,6 @@ class Resource(object):
                         return HttpResponseServerError()
 
                 # Add a location header
-                print request.rest_info.request_method
                 if request.rest_info.request_method == 'POST' or (request.rest_info.request_method == 'PUT' and request.rest_info.request_type == 'list'):
                     try:
                         response['Location'] = get_url_for_object(self._meta.api_name, data[0])
@@ -562,13 +491,6 @@ class Resource(object):
                         response.content = ''
                         return response
 
-        print data
-        print self._meta.fields
-        print self._meta.exclude
-        print self._optionlist_for_type(request.rest_info.request_method, self._meta.exclude)
-        print self._meta.reverse_fields
-        print self._meta.inline
-        print self._meta.map_fields
         try:
             s = serializers.serialize('rest%s' % (format), 
                 data, 

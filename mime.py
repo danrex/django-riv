@@ -69,7 +69,6 @@ def get_available_format(request):
 
     return None
 
-#def detect_format(request, default_format='application/json'):
 def detect_format(request):
     """
     Detects the format requested by the user.
@@ -78,7 +77,6 @@ def detect_format(request):
         return [request.GET['format']]
 
     format_list = media_by_accept_header(request)
-    #return format_list or [default_format]
     return format_list
 
 

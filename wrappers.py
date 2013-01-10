@@ -175,8 +175,6 @@ class StandaloneWrapper(BaseWrapper):
             return HttpResponseNotAllowed(rest_info.allowed_methods)
 
         formset = ModelFormSet(request.POST, request.FILES)
-        print formset.is_valid()
-        print formset.errors
         if formset.is_valid():
             objects = formset.save()
             return render_to_rest(objects)
@@ -242,10 +240,8 @@ class StandaloneWrapper(BaseWrapper):
             # changed the request type to POST for views.
             return HttpResponseNotAllowed(rest_info.allowed_methods)
 
-        # TODO Here it has to be decided whether the application
-        # wants to allow the creation of a new entity with a given
-        # id from the outside world.
-        #entity = model.objects.get(pk=entity_id)
+        # We enforce an update. For the creation of new objects
+        # "POST" (create) should be used.
         entity = get_object_or_404(model, pk=entity_id)
 
         form = ModelForm(request.POST, instance=entity)
@@ -297,21 +293,9 @@ class StandaloneWrapper(BaseWrapper):
             return HttpResponseNotAllowed(rest_info.allowed_methods)
 
         formset = ModelFormSet(request.POST, request.FILES)
-        print formset.is_valid()
-        print formset.errors
         if formset.is_valid():
             objects = formset.save()
-            url_list = []
-            for obj in objects:
-                print obj
-                url_list.append("%s%s" % (request.get_full_path(), obj.id))
-                print url_list
-            #format = resource.get_format(request) # TODO.
-            format = 'json'
-            if format == 'json':
-                return HttpResponse(simplejson.dumps(url_list))
-            else:
-                return # TODO
+            return render_to_rest(objects)
         else:
             rest_info.error_by_form(formset)
             return HttpResponse()

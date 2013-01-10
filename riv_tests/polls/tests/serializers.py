@@ -230,7 +230,6 @@ class XmlSerializerTestCase(BaseSerializerTestCase):
     def testSerializeChoiceMap(self):
         xmlstring = '<?xml version="1.0" encoding="utf-8"?><objects><choice><ballots>%d</ballots><poll>%d</poll><id>%d</id><choice>%s</choice></choice></objects>' % (self.choice1.votes, self.choice1.poll.id, self.choice1.id, self.choice1.choice)
         result_xml = ET.fromstring(xmlstring)
-        print serializers.serialize('restxml', self.choice1, map_fields={'votes': 'ballots'})
         serialized_xml = ET.fromstring(serializers.serialize('restxml', self.choice1, map_fields={'votes': 'ballots'}))
         self.assertTrue(xml_compare(result_xml, serialized_xml))
 

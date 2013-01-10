@@ -52,11 +52,9 @@ def poll_create_multiple(request):
     if request.method == 'POST':
         formset = PollFormSet(request.POST)
         if formset.is_valid():
-            print "Valid"
             objects = formset.save()
             return render_to_rest(objects)
         else:
-            print "Not Valid"
             if request.is_rest():
                 return render_form_error_to_rest(formset)
     else:

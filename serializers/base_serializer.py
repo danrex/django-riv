@@ -68,7 +68,6 @@ class Serializer(python.Serializer):
         self.start_serialization()
         # this is a dirty hack
         self.objects = [{'fields': queryset}]
-        print self.objects
         self.end_serialization()
         return self.getvalue()
 
@@ -85,12 +84,6 @@ class Serializer(python.Serializer):
         try:
             self.serialize_reverse_fields(obj)
         except AttributeError:
-            # fail silently. This method will be applied to all foreignkeys
-            # and many-to-many items as well (when asked for inline serialization)
-            # Thus, we have to ensure to fail silently because most likely
-            # they will not have the same reverse many-to-many relationship.
-            #pass
-            # TODO check if this is still correct
             raise
         # We have no fields defined but we want to exclude fields. Thus, we
         # have to grab the list of all fields and exclude the required ones.
@@ -113,9 +106,6 @@ class Serializer(python.Serializer):
                         self._current[field] = field_obj
         if self.map_fields:
             for key,value in self.map_fields.iteritems():
-                print self._current
-                print key
-                print value
                 if self._current.has_key(key):
                     self._current[value] = self._current[key]
                     del self._current[key]
@@ -141,10 +131,6 @@ class Serializer(python.Serializer):
 
                         self._current[value] = tmp
                         # Then, walk down the dictionaries and remove the key.
-                        print "-------"
-                        print self._current
-                        print key_list
-                        print traverse_dict(self._current, key_list, return_parent=True)
                         del traverse_dict(self._current, key_list, return_parent=True)[key_list[-1]]
                     except KeyError:
                         raise SerializationError("Invalid key '%s' in map_fields. Did you add '%s' to the inline fields?" % (key, key_list[0]))
