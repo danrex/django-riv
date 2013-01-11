@@ -17,36 +17,44 @@ share the same requirements.
 
 Add RIV to the list of your installed apps:
 
- # settings.py
- INSTALLED_APPS = (
-   ...
-   'riv',
- )
+```python
+# settings.py
+INSTALLED_APPS = (
+  ...
+  'riv',
+)
+```
 
 Add the RivMiddleware to the end of your middleware classes 
 
- # settings.py
- MIDDLEWARE_CLASSES = (
-   'django.middleware.common.CommonMiddleware',
-   ...
-   'riv.middleware.RivMiddleware',
- )
+```python
+# settings.py
+MIDDLEWARE_CLASSES = (
+  'django.middleware.common.CommonMiddleware',
+  ...
+  'riv.middleware.RivMiddleware',
+)
+```
 
 The RIV serializers extend the builtin Django serializers. So you have
 to add the serializers you want to use to the settings.
 
- # settings.py
- SERIALIZATION_MODULES = {
-   'restjson': 'riv.serializers.json',
-   'restxml':  'riv.serializers.xml',
- }
+```python
+# settings.py
+SERIALIZATION_MODULES = {
+  'restjson': 'riv.serializers.json',
+  'restxml':  'riv.serializers.xml',
+}
+```
 
 For debugging purposes you can tell RIV to display errors. However, 
 for security reasons this setting only has an effect if Django is 
 running in debug mode.
 
- # settings.py
- RIV_DISPLAY_ERRORS = True
+```python
+# settings.py
+RIV_DISPLAY_ERRORS = True
+```
 
 ### Add Resources ###
 
@@ -55,34 +63,38 @@ model. Each resource needs to define a wrapper to wrap view functions
 into your resource. Using the StandaloneWrapper class you don't need to
 have any views set up.
 
- # myapp/resources.py
- from riv.resources import Resource
- from riv.wrappers import StandaloneWrapper
- from myapp.models import MyModel
+```python
+# myapp/resources.py
+from riv.resources import Resource
+from riv.wrappers import StandaloneWrapper
+from myapp.models import MyModel
 
- class MyModelResource(Resource):
-   _wrapper = StandaloneWrapper()
-   class Meta:
-     name = 'mymodel'
-     model = MyModel
+class MyModelResource(Resource):
+  _wrapper = StandaloneWrapper()
+  class Meta:
+    name = 'mymodel'
+    model = MyModel
+```
 
 Create an API, add the resource and make the URLs public. Add the
 following lines to your URLconf
 
 ### Create an API for your resources ###
 
- # myapp/urls.py
- from riv.api import Api
- from myapp.resources import MyModelResource
+```python
+# myapp/urls.py
+from riv.api import Api
+from myapp.resources import MyModelResource
 
- # The api name is only used internally. It does not become part
- # of your URL
- myapi = Api(name='myapi')
- myapi.register(MyModelResource())
+# The api name is only used internally. It does not become part
+# of your URL
+myapi = Api(name='myapi')
+myapi.register(MyModelResource())
 
- urlpatterns += patterns('',
-   (r'api/', include(myapi.urls)),
- )
+urlpatterns += patterns('',
+  (r'api/', include(myapi.urls)),
+)
+```
 
 ### Try it ###
 
@@ -125,7 +137,7 @@ The focus of RIV is to make your views completely resusable. Therefore:
 Please report bugs as you find them and I will add them here until they
 have been fixed.
 
-# License # 
+# License #
 
 See the LICENSE file in the repository.
 
