@@ -1,12 +1,24 @@
 from django.core.urlresolvers import reverse, NoReverseMatch
 
 def traverse_dict(d, keys, return_parent=False):
-    if isinstance(d, dict):
-        if return_parent and len(keys) == 1:
-            return d
+    if return_parent:
+        # Remove the last key element and set return_parent to False
+        # for recursive calls.
+        keys = keys[:-1]
+        return_parent = False
+    if isinstance(d, dict) and len(keys) > 0:
         if d.has_key(keys[0]):
             return traverse_dict(d[keys[0]], keys[1:], return_parent)
         else:
+            raise KeyError("Traversing the dictionary failed on key: %s" % keys[0])
+    elif isinstance(d, list) and len(keys) == 1:
+        try:
+            if isinstance(d[0], dict):
+                try:
+                    return [i[keys[0]] for i in d]
+                except KeyError, e:
+                    raise KeyError("Traversing the dictionary failed on key: %s" % keys[0])
+        except IndexError, e:
             raise KeyError("Traversing the dictionary failed on key: %s" % keys[0])
     else:
         # if "keys" is specified the user requested to further traverse

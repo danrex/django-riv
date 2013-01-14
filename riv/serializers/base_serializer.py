@@ -89,7 +89,7 @@ class Serializer(python.Serializer):
         # have to grab the list of all fields and exclude the required ones.
         if not self.selected_fields and self.excluded_fields:
             self.selected_fields = list(
-                set(obj._meta.get_all_field_names()).difference(set(self.excluded_fields))
+                set(obj._meta.get_all_field_names()).difference(set(self.excluded_fields)-set(self.inline))
             )
 
     def end_object(self, obj):
@@ -106,36 +106,15 @@ class Serializer(python.Serializer):
                         self._current[field] = field_obj
         if self.map_fields:
             for key,value in self.map_fields.iteritems():
-                if self._current.has_key(key):
-                    self._current[value] = self._current[key]
-                    del self._current[key]
-                elif SEPARATOR in key and self._current.has_key(key.split(SEPARATOR)[0]):
-                    key_list = key.split(SEPARATOR)
-                    try:
-                        # Walk down the dictionaries and return the value.
-                        # This has to be done before the "value check" below to ensure that
-                        # a KeyError is raised in case the ForeignKey has not been serialized
-                        # (through the 'inline' option)
-                        tmp = traverse_dict(self._current, key_list)
-
-                        if SEPARATOR in value:
-                            value_list = value.split(SEPARATOR)
-                            if key_list[0] == value_list[0]:
-                                # If the value is a ForeignKey as well (contains the SEPARATOR)
-                                # we don't handle it here.
-                                continue
-                            else:
-                                # Crossmapping between different ForeignKey objects
-                                # is currently not supported.
-                                raise SerializationError("Crossmapping between different ForeignKey fields is currently not supported.")
-
-                        self._current[value] = tmp
-                        # Then, walk down the dictionaries and remove the key.
-                        del traverse_dict(self._current, key_list, return_parent=True)[key_list[-1]]
-                    except KeyError:
-                        raise SerializationError("Invalid key '%s' in map_fields. Did you add '%s' to the inline fields?" % (key, key_list[0]))
-                else:
-                    raise SerializationError("Invalid key '%s' in map_fields." % (key,))
+                self._map_field(key, value)
+        # Fields that are present in "excluded" AND "inline" have been serialized because they 
+        # might have been required to map fields.  We have to remove them now.
+        if self.excluded_fields and self.inline:
+            for field in (list(set(self.excluded_fields) & set(self.inline))):
+                try:
+                    del self._current[field]
+                except KeyError:
+                    pass
         super(Serializer, self).end_object(obj)
 
     def end_serialization(self):
@@ -253,11 +232,56 @@ class Serializer(python.Serializer):
             if self.map_fields:
                 for k,v in self.map_fields.items():
                     if k.startswith(field_option_name) and v.startswith(field_option_name):
-                        # Remove the key from the original list of fields. It
-                        # has been handled here.
-                        del self.map_fields[k]
                         maps[k.replace(field_option_name, '')] = v.replace(field_option_name, '')
             return fields or None, exclude or None, maps, inline
+
+    def _map_field(self, key, value):
+        if self._current.has_key(key):
+            self._current[value] = self._current[key]
+            del self._current[key]
+        elif SEPARATOR in key and self._current.has_key(key.split(SEPARATOR)[0]):
+            key_list = key.split(SEPARATOR)
+
+            # Skip if the FK or M2M relation is blank.
+            if not self._current[key_list[0]]:
+                return
+
+            if SEPARATOR in value:
+                value_list = value.split(SEPARATOR)
+                # Test if the key is valid to generate nice errors.
+                try:
+                    traverse_dict(self._current, key_list)
+                except KeyError, e:
+                    try:
+                        traverse_dict(self._current, value_list)
+                    except KeyError, e:
+                        raise SerializationError("Invalid key '%s' in map_fields. Did you add '%s' to the inline fields?" % (key, key_list[0]))
+
+                if key_list[0] == value_list[0]:
+                    # If the value is a ForeignKey as well (contains the SEPARATOR)
+                    # we don't handle it here. It will be handled during the 
+                    # serialization of the inline element.
+                    return
+                else:
+                    # Crossmapping between different ForeignKey objects
+                    # is currently not supported.
+                    raise SerializationError("Crossmapping between different ForeignKey fields is currently not supported.")
+
+            try:
+                tmp = traverse_dict(self._current, key_list)
+
+                self._current[value] = tmp
+                # Then, walk down the dictionaries and remove the key.
+                parent_object = traverse_dict(self._current, key_list, return_parent=True)
+                if isinstance(parent_object, list):
+                    for element in parent_object:
+                        del element[key_list[-1]]
+                else:
+                    del traverse_dict(self._current, key_list, return_parent=True)[key_list[-1]]
+            except KeyError:
+                raise SerializationError("Invalid key '%s' in map_fields. Did you add '%s' to the inline fields?" % (key, key_list[0]))
+        else:
+            raise SerializationError("Invalid key '%s' in map_fields." % (key,))
 
 
 def Deserializer(object_list, **options):

@@ -63,6 +63,48 @@ class BaseSerializerTestCase(BaseTestCase):
             {'pub_date': self.poll1.pub_date, 'question': self.poll1.question, 'id': self.poll1.id, 'tags': [x.id for x in self.poll1.tags.all()]}
         )
 
+    def testSerializePollManyToManyInline(self):
+        self.assertEqual(
+            serializers.serialize('rest', self.poll1, inline=['tags']),
+            {'pub_date': self.poll1.pub_date, 'question': self.poll1.question, 'id': self.poll1.id, 'tags': [{'name': x.name, 'id': x.id} for x in self.poll1.tags.all()]}
+        )
+
+    def testSerializePollExcludeManyToManyAttribute(self):
+        self.assertEqual(
+            serializers.serialize('rest', self.poll1, exclude=['tags__name'], inline=['tags']),
+            {'pub_date': self.poll1.pub_date, 'question': self.poll1.question, 'id': self.poll1.id, 'tags': [{'id': x.id} for x in self.poll1.tags.all()]}
+        )
+
+    def testSerializeMultiplePollsExcludeManyToManyAttribute(self):
+        self.assertEqual(
+            serializers.serialize('rest', [self.poll1, self.poll2], exclude=['tags__name'], inline=['tags']),
+            [{'pub_date': self.poll1.pub_date, 'question': self.poll1.question, 'id': self.poll1.id, 'tags': [{'id': x.id} for x in self.poll1.tags.all()]}, {'pub_date': self.poll2.pub_date, 'question': self.poll2.question, 'id': self.poll2.id, 'tags': [{'id': x.id} for x in self.poll2.tags.all()]}]
+        )
+
+    def testSerializePollRenameManyToManyAttribute(self):
+        self.assertEqual(
+            serializers.serialize('rest', self.poll1, map_fields={'tags__name': 'tags__text'}, inline=['tags']),
+            {'pub_date': self.poll1.pub_date, 'question': self.poll1.question, 'id': self.poll1.id, 'tags': [{'text': x.name, 'id': x.id} for x in self.poll1.tags.all()]}
+        )
+
+    def testSerializeMultiplePollsRenameManyToManyAttribute(self):
+        self.assertEqual(
+            serializers.serialize('rest', [self.poll1, self.poll2], map_fields={'tags__name': 'tags__text'}, inline=['tags']),
+            [{'pub_date': self.poll1.pub_date, 'question': self.poll1.question, 'id': self.poll1.id, 'tags': [{'text': x.name, 'id': x.id} for x in self.poll1.tags.all()]}, {'pub_date': self.poll2.pub_date, 'question': self.poll2.question, 'id': self.poll2.id, 'tags': [{'text': x.name, 'id': x.id} for x in self.poll2.tags.all()]}]
+        )
+
+    def testSerializePollMapDownManyToManyAttribute(self):
+        self.assertEqual(
+            serializers.serialize('rest', self.poll1, map_fields={'tags__name': 'tagname'}, inline=['tags']),
+            {'pub_date': self.poll1.pub_date, 'question': self.poll1.question, 'id': self.poll1.id, 'tagname': [x.name for x in self.poll1.tags.all()], 'tags': [{'id': x.id} for x in self.poll1.tags.all()]}
+        )
+
+    def testSerializePollMapDownManyToManyAttributeAndRemoveRemains(self):
+        self.assertEqual(
+            serializers.serialize('rest', self.poll1, map_fields={'tags__name': 'tagname'}, inline=['tags'], exclude=['tags']),
+            {'pub_date': self.poll1.pub_date, 'question': self.poll1.question, 'id': self.poll1.id, 'tagname': [x.name for x in self.poll1.tags.all()]}
+        )
+
     def testSerializeChoice(self):
         self.assertEqual(
             serializers.serialize('rest', self.choice1),
@@ -129,6 +171,12 @@ class BaseSerializerTestCase(BaseTestCase):
         self.assertEqual(
             serializers.serialize('rest', self.choice1, map_fields={'votes': 'ballots'}),
             {'ballots': self.choice1.votes, 'poll': self.choice1.poll.id, 'id': self.choice1.id, 'choice': self.choice1.choice}
+        )
+
+    def testSerializeMultipleChoiceMap(self):
+        self.assertEqual(
+            serializers.serialize('rest', [self.choice1, self.choice2], map_fields={'votes': 'ballots'}),
+            [{'ballots': self.choice1.votes, 'poll': self.choice1.poll.id, 'id': self.choice1.id, 'choice': self.choice1.choice}, {'ballots': self.choice2.votes, 'poll': self.choice2.poll.id, 'id': self.choice2.id, 'choice': self.choice2.choice}]
         )
 
     def testSerializeChoiceMapForeignKey(self):

@@ -15,3 +15,4 @@ class BaseTestCase(TestCase):
 from resources import *
 from serializers import *
 from deserializers import *
+from utils import *
