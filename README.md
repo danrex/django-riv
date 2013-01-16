@@ -15,6 +15,8 @@ to exclude fields, rename fields, include a full representation of
 foreign keys and m2m fields, move fields between foreign keys and
 your main object and many more.
 
+Documentation on Read the Docs: [RiV](https://riv.readthedocs.org/en/latest/)
+
 ## Requirements ##
 
 RIV does not require any additional third party modules. The serializers
@@ -70,23 +72,39 @@ RIV_DISPLAY_ERRORS = True
 
 Add a resources.py file to your application and add a resource for your
 model. Each resource needs to define a wrapper to wrap view functions
-into your resource. Using the StandaloneWrapper class you don't need to
-have any views set up.
+into your resource (If you don't have any views you can simply use the 
+StandaloneWrapper class).
 
 ```python
 # myapp/resources.py
 from riv.resources import Resource
-from riv.wrappers import StandaloneWrapper
 from myapp.models import MyModel
 
 class MyModelResource(Resource):
-  _wrapper = StandaloneWrapper()
+  _wrapper = MyModelWrapper()
   class Meta:
     name = 'mymodel'
     model = MyModel
 ```
 
-Create an API, add the resource and make the URLs public. Add the
+The wrapper class tells RiV where to find the views to handle the
+different HTTP methods.
+
+```python
+# myapp/wrappers.py
+from riv.wrappers import BaseWrapper
+from riv.helpers import call_view
+from myapp import views
+
+class MyModelWrapper(BaseWrapper):
+    read_multiple = call_view(views.index)    // GET
+    read          = call_view(views.detail)   // GET with id
+    create        = call_view(views.create)   // POST
+    update        = call_view(views.update)   // PUT
+    delete        = call_view(views.delete)   // DELETE
+```
+
+Create an API, add the resource, and make the URLs public. Add the
 following lines to your URLconf
 
 ### Create an API for your resources ###
@@ -109,6 +127,12 @@ urlpatterns += patterns('',
 ### Try it ###
 
 You can now access the resource at http://<yourhost>/myapp/api/mymodel/.
+
+# Documentation #
+
+You can find the documentation [here](https://riv.readthedocs.org/en/latest/).
+
+Have a look at the [tutorial](https://riv.readthedocs.org/en/latest/tutorial.html).
 
 # Comparision to existing solutions #
 
