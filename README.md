@@ -5,6 +5,16 @@ RIV (Rest-In-Views) is a REST framework for
 smoothly into the Django concepts and make as much of your existing
 code reusable as possible.
 
+RiV aims to maintain Django's MVC structure while extending your
+existing application with a RESTful API.
+
+In Django the views describe *which data you see* while the templates
+are responsible for *how you see it*. An API built with RiV keeps that structure by
+replacing the role of templates with resources. Thus, RiV provides a large set of methods
+to exclude fields, rename fields, include a full representation of 
+foreign keys and m2m fields, move fields between foreign keys and
+your main object and many more.
+
 ## Requirements ##
 
 RIV does not require any additional third party modules. The serializers
