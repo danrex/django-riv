@@ -97,11 +97,11 @@ from riv.helpers import call_view
 from myapp import views
 
 class MyModelWrapper(BaseWrapper):
-    read_multiple = call_view(views.index)    // GET
-    read          = call_view(views.detail)   // GET with id
-    create        = call_view(views.create)   // POST
-    update        = call_view(views.update)   // PUT
-    delete        = call_view(views.delete)   // DELETE
+    read_multiple = call_view(views.index)    # GET
+    read          = call_view(views.detail)   # GET with id
+    create        = call_view(views.create)   # POST
+    update        = call_view(views.update)   # PUT
+    delete        = call_view(views.delete)   # DELETE
 ```
 
 Create an API, add the resource, and make the URLs public. Add the
