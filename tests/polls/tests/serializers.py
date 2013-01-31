@@ -63,6 +63,32 @@ class BaseSerializerTestCase(BaseTestCase):
             {'pub_date': self.poll1.pub_date, 'question': self.poll1.question, 'id': self.poll1.id, 'tags': [x.id for x in self.poll1.tags.all()]}
         )
 
+    def testSerializePollReverseChoice(self):
+        self.assertEqual(
+            serializers.serialize('rest', self.poll1, reverse_fields=['choice_set']),
+            {'pub_date': self.poll1.pub_date, 'question': self.poll1.question, 'id': self.poll1.id, 'choice_set': [1, 2, 3, 5, 6], 'tags': [1, 2, 3]}
+        )
+
+    def testSerializePollReverseChoiceInline(self):
+        self.assertEqual(
+            serializers.serialize('rest', self.poll1, reverse_fields=['choice_set'], inline=['choice_set']),
+            {'pub_date': self.poll1.pub_date, 'question': self.poll1.question, 'id': self.poll1.id, 'choice_set': [{'choice': x.choice, 'id': x.id, 'poll': x.poll.id, 'votes': x.votes} for x in self.poll1.choice_set.all()], 'tags': [1, 2, 3]}
+        )
+
+    def testSerializePollReverseChoiceInlineMap(self):
+        self.maxDiff = None # show the full diff output for long strings
+        self.assertEqual(
+                serializers.serialize('rest', self.poll1, reverse_fields=['choice_set'], inline=['choice_set'], map_fields={'choice_set__choice': 'choice_set__text'}),
+            {'pub_date': self.poll1.pub_date, 'question': self.poll1.question, 'id': self.poll1.id, 'choice_set': [{'text': x.choice, 'id': x.id, 'poll': x.poll.id, 'votes': x.votes} for x in self.poll1.choice_set.all()], 'tags': [1, 2, 3]}
+        )
+
+    def testSerializePollReverseChoiceInlineMapDown(self):
+        self.maxDiff = None # show the full diff output for long strings
+        self.assertEqual(
+                serializers.serialize('rest', self.poll1, reverse_fields=['choice_set'], inline=['choice_set'], map_fields={'choice_set__choice': 'choicetext'}),
+                {'pub_date': self.poll1.pub_date, 'question': self.poll1.question, 'id': self.poll1.id, 'choicetext': [x.choice for x in self.poll1.choice_set.all()], 'choice_set': [{'id': x.id, 'poll': x.poll.id, 'votes': x.votes} for x in self.poll1.choice_set.all()], 'tags': [1, 2, 3]}
+        )
+
     def testSerializePollManyToManyInline(self):
         self.assertEqual(
             serializers.serialize('rest', self.poll1, inline=['tags']),
