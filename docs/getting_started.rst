@@ -46,8 +46,8 @@ to the list of ``SERIALIZATION_MODULES``::
 
     # settings.py
     SERIALIZATION_MODULES = {
-      'restjson': 'riv.serializers.json',
-      'restxml':  'riv.serializers.xml'
+      'restjson': 'riv.serializers.json_serializer',
+      'restxml':  'riv.serializers.xml_serializer'
     }
 
 

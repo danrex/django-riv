@@ -1,7 +1,7 @@
-# RIV #
+# RiV #
 
-RIV (Rest-In-Views) is a REST framework for 
-[Django](http://www.djangoproject.com). The aim of RIV is to integrate
+RiV (Rest-In-Views) is a REST framework for 
+[Django](http://www.djangoproject.com). The aim of RiV is to integrate
 smoothly into the Django concepts and make as much of your existing
 code reusable as possible.
 
@@ -19,7 +19,7 @@ Documentation on Read the Docs: [RiV](https://riv.readthedocs.org/en/latest/)
 
 ## Requirements ##
 
-RIV does not require any additional third party modules. The serializers
+RiV does not require any additional third party modules. The serializers
 are built on top of the built-in Django serializers and therefore 
 share the same requirements.
 
@@ -27,7 +27,7 @@ share the same requirements.
 
 ### Setup ###
 
-Add RIV to the list of your installed apps:
+Add RiV to the list of your installed apps:
 
 ```python
 # settings.py
@@ -48,24 +48,24 @@ MIDDLEWARE_CLASSES = (
 )
 ```
 
-The RIV serializers extend the builtin Django serializers. So you have
+The RiV serializers extend the builtin Django serializers. So you have
 to add the serializers you want to use to the settings.
 
 ```python
 # settings.py
 SERIALIZATION_MODULES = {
-  'restjson': 'riv.serializers.json',
-  'restxml':  'riv.serializers.xml',
+  'restjson': 'riv.serializers.json_serializer',
+  'restxml':  'riv.serializers.xml_serializer',
 }
 ```
 
-For debugging purposes you can tell RIV to display errors. However, 
+For debugging purposes you can tell RiV to display errors. However, 
 for security reasons this setting only has an effect if Django is 
 running in debug mode.
 
 ```python
 # settings.py
-RIV_DISPLAY_ERRORS = True
+RiV_DISPLAY_ERRORS = True
 ```
 
 ### Add Resources ###
@@ -148,21 +148,21 @@ Tastypie.
 
 However, if you already have an existing Django web application and you
 want to enrich it with an API because for example you want to write a
-native mobile app you will probably see the advantages of RIV quickly.
+native mobile app you will probably see the advantages of RiV quickly.
 
 # Design concept #
 
-The focus of RIV is to make your views completely resusable. Therefore:
+The focus of RiV is to make your views completely resusable. Therefore:
 
 * Data preparation and access control happens in your views
-* RIV ensures your response is conform to the HTTP protocol definitions
-* RIV helps you to change the representation of your data
-* If you don't have views RIV can run in a standalone mode
+* RiV ensures your response is conform to the HTTP protocol definitions
+* RiV helps you to change the representation of your data
+* If you don't have views RiV can run in a standalone mode
 
 # Known Issues #
 
 * The HTTP methods OPTIONS, HEAD, TRACE and PATCH are not implemented
-* RIV currently supports only integers as primary keys
+* RiV currently supports only integers as primary keys
 * Foreign keys have to be supplied as ids and not as URIs
 * Changing foreign key (or m2m) fields inline is not supported
 
