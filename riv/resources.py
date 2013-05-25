@@ -2,7 +2,7 @@ import django
 from django.core.exceptions import ValidationError
 from django.http import Http404, HttpResponse, HttpResponseBadRequest, HttpResponseServerError, HttpResponseNotFound
 from django.conf import settings
-from django.conf.urls.defaults import patterns, url
+from django.conf.urls import patterns, url
 from django.views.decorators.csrf import csrf_exempt
 from django.db.models.query import QuerySet
 from django.core import serializers

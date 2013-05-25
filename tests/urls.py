@@ -1,4 +1,4 @@
-from django.conf.urls.defaults import patterns, include, url
+from django.conf.urls import patterns, include, url
 from polls.resources import StandaloneReadOnlyChoiceResource, ReadOnlyPollResource, ReadWritePollResource, \
         StandaloneReadOnlyPollResource, StandaloneReadWritePollResource, StandaloneReadWritePollResource2, \
         StandaloneExcludeGetOnly, StandaloneExcludePostOnly, StandaloneExcludePutOnly, StandaloneTagResource, \
