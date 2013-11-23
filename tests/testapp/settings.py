@@ -96,7 +96,7 @@ MIDDLEWARE_CLASSES = (
     'riv.middleware.RivMiddleware',
 )
 
-ROOT_URLCONF = 'urls'
+ROOT_URLCONF = 'testapp.urls'
 
 TEMPLATE_DIRS = (
     # Put strings here, like "/home/html/django_templates" or "C:/www/django/templates".
