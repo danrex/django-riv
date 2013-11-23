@@ -159,6 +159,11 @@ The focus of RiV is to make your views completely resusable. Therefore:
 * RiV helps you to change the representation of your data
 * If you don't have views RiV can run in a standalone mode
 
+# Testing #
+
+Since Django 1.6 the test discovery has changed. In order to run the
+tests start the test command with `--pattern="*.py"`.
+
 # Known Issues #
 
 * The HTTP methods OPTIONS, HEAD, TRACE and PATCH are not implemented
