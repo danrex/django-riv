@@ -681,6 +681,7 @@ option::
     class VoteResource(Resource):
         _wrapper = VoteWrapper()
         class Meta:
+            name = 'vote'
             allowed_methods = ['POST',]
             extra_fields = ['poll', 'choice']
 
