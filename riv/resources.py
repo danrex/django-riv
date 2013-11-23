@@ -274,7 +274,7 @@ class Resource(object):
     def read_raw_data(self, request):
         # convert the data into the correct format and add
         # it as POST variables.
-        from django.http import QueryDict, MultiValueDict
+        from django.http.request import QueryDict, MultiValueDict
         if not request.method in ['POST', 'PUT']:
             request._post, request._files = QueryDict('', encoding=request._encoding), MultiValueDict()
         else:
