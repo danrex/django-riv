@@ -315,7 +315,10 @@ class Resource(object):
 
         if (exception and isinstance(exception, Http404)) or \
         (response and response.status_code == 404):
-            return HttpResponseNotFound()
+            if settings.DEBUG and self.display_errors and exception:
+                return HttpResponseNotFound(exception)
+            else:
+                return HttpResponseNotFound()
 
         if exception:
             if settings.DEBUG and self.display_errors:
