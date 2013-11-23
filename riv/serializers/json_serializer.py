@@ -1,5 +1,5 @@
 from StringIO import StringIO
-from django.utils import simplejson
+import json
 from django.core.serializers.json import DjangoJSONEncoder, DateTimeAwareJSONEncoder
 from django.core.serializers.base import DeserializationError
 
@@ -19,7 +19,7 @@ class Serializer(base.Serializer):
         super(Serializer, self).end_serialization()
         if not self.finalize:
             return
-        simplejson.dump(self.objects, self.stream, cls=DjangoJSONEncoder, **self.options)
+        json.dump(self.objects, self.stream, cls=DjangoJSONEncoder, **self.options)
 
     def getvalue(self):
         if callable(getattr(self.stream, 'getvalue', None)):
@@ -33,7 +33,7 @@ class Loader(base.Loader):
             stream = self.data
 
         try:
-            self.objects = simplejson.load(stream)
+            self.objects = json.load(stream)
         except Exception, e:
             raise base.LoadingError(e)
 
@@ -46,7 +46,7 @@ def Deserializer(stream_or_string, **options):
     else:
         stream = stream_or_string
     try:
-        for obj in base.Deserializer(simplejson.load(stream), **options):
+        for obj in base.Deserializer(json.load(stream), **options):
             yield obj
     except GeneratorExit:
         raise

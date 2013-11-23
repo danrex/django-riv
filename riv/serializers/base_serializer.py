@@ -1,3 +1,4 @@
+import json
 from StringIO import StringIO
 
 from django.db.models import Model
@@ -5,7 +6,6 @@ from django.core.serializers import python, json
 from django.core.serializers.base import SerializationError
 from django.core.urlresolvers import reverse, NoReverseMatch
 from django.utils.encoding import smart_unicode, is_protected_type
-from django.utils import simplejson
 
 from riv.utils import traverse_dict, create_tree_with_val, get_url_for_object
 

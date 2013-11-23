@@ -1,10 +1,10 @@
 import sys
+import json
 from django.core.exceptions import ObjectDoesNotExist, MultipleObjectsReturned
 from django.utils.importlib import import_module
 from django.db import transaction
 from django.http import Http404, HttpResponse, HttpResponseServerError, HttpResponseNotFound, HttpResponseBadRequest
 from django.forms.models import modelform_factory, modelformset_factory
-from django.utils import simplejson
 from django.shortcuts import get_object_or_404
 from riv.http import HttpResponseConflict, HttpResponseNotImplemented, HttpResponseNotAllowed, HttpResponseNoContent
 from riv import RestResponse
