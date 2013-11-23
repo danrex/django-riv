@@ -13,9 +13,44 @@ are responsible for *how you see it*. An API built with RiV keeps that structure
 replacing the role of templates with resources. Thus, RiV provides a large set of methods
 to exclude fields, rename fields, include a full representation of 
 foreign keys and m2m fields, move fields between foreign keys and
-your main object and many more.
+your main object and many more. Just imagine you have a model like this:
 
-Documentation on Read the Docs: [RiV](https://riv.readthedocs.org/en/latest/)
+```python
+class Poll(models.Model):
+    question = models.CharField(max_length=200)
+
+class Choice(models.Model):
+    poll = models.ForeignKey(Poll)
+    name = models.CharField(max_length=200)
+    votes = models.IntegerField()
+```
+
+But you want to to include the poll question directly into the JSON
+representation of your Choice object, e.g.
+
+```python
+{
+  "id": 1,
+  "name": "green",
+  "question": "What is your favorite color?",
+  "votes": 4
+}
+```
+
+In RiV you can do this basically in one line, simply mapping your
+foreign key field:
+
+```python
+class ChoiceResource(Resource):
+    ...
+    class Meta:
+        model = Choice
+        map_fields = {
+            'poll__question': 'question',
+        }
+```
+
+For more features read the documentation on Read the Docs: [RiV](https://riv.readthedocs.org/en/latest/)
 
 ## Requirements ##
 
