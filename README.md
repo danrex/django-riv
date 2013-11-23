@@ -1,5 +1,7 @@
 # RiV #
 
+RiV works with Django 1.6.
+
 RiV (Rest-In-Views) is a REST framework for 
 [Django](http://www.djangoproject.com). The aim of RiV is to integrate
 smoothly into the Django concepts and make as much of your existing
