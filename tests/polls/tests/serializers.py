@@ -24,8 +24,8 @@ def xml_compare(x1, x2):
         return False
     if not text_compare(x1.tail, x2.tail):
         return False
-    cl1 = sorted(x1.getchildren(), key=lambda e: e.tag)
-    cl2 = sorted(x2.getchildren(), key=lambda e: e.tag)
+    cl1 = sorted(list(x1), key=lambda e: e.tag)
+    cl2 = sorted(list(x2), key=lambda e: e.tag)
     if len(cl1) != len(cl2):
         return False
     i = 0
