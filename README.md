@@ -1,6 +1,8 @@
 # RiV #
 
-RiV works with Django 1.6.
+Use RiV v0.1 for Django 1.5 and earlier.
+Use RiV v0.2 for Django 1.6.
+Use RiV v0.2.1 for Django 1.7alpha1.
 
 RiV (Rest-In-Views) is a REST framework for 
 [Django](http://www.djangoproject.com). The aim of RiV is to integrate
