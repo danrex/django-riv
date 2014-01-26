@@ -166,7 +166,7 @@ class StandaloneWrapper(BaseWrapper):
         else:
             model = rest_info.model
 
-        ModelFormSet = modelformset_factory(model)
+        ModelFormSet = modelformset_factory(model, fields="__all__")
 
         if not request.method == 'POST':
             # This is actually a misconfiguration. If this method is
@@ -192,7 +192,7 @@ class StandaloneWrapper(BaseWrapper):
         else:
             model = rest_info.model
 
-        ModelForm = modelform_factory(model)
+        ModelForm = modelform_factory(model, fields="__all__")
 
         if not request.method == 'POST':
             # This is actually a misconfiguration. If this method is
@@ -228,7 +228,7 @@ class StandaloneWrapper(BaseWrapper):
         except (ValueError, TypeError), e:
             return HttpResponseBadRequest()
 
-        ModelForm = modelform_factory(model)
+        ModelForm = modelform_factory(model, fields="__all__")
 
         if not request.method == 'POST':
             # This is actually a misconfiguration. If this method is

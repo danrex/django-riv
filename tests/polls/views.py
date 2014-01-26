@@ -48,7 +48,7 @@ def poll_create_or_update(request, id=None):
     )
 
 def poll_create_multiple(request):
-    PollFormSet = modelformset_factory(Poll)
+    PollFormSet = modelformset_factory(Poll, fields="__all__")
     if request.method == 'POST':
         formset = PollFormSet(request.POST)
         if formset.is_valid():

@@ -23,3 +23,4 @@ class VoteForm(forms.Form):
 class PollForm(forms.ModelForm):
     class Meta:
         model = Poll
+        fields = "__all__"
