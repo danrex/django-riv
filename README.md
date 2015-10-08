@@ -175,7 +175,7 @@ You can find the documentation [here](https://riv.readthedocs.org/en/latest/).
 
 Have a look at the [tutorial](https://riv.readthedocs.org/en/latest/tutorial.html).
 
-# Comparision to existing solutions #
+# Comparison to existing solutions #
 
 There are a couple of different REST frameworks for Django. The most
 well-known are Piston and Tastypie. Both of them are well-written and
